@@ -237,7 +237,10 @@ const mathBlock: Construct = {
     }
 
     function openingRest(code: Code): State | undefined {
-      if (code === null || isLineEnding(code)) {
+      // Unlike a code fence, a block needs its closing line, so a formula
+      // still streaming in stays text instead of typesetting each prefix.
+      if (code === null) return nok(code);
+      if (isLineEnding(code)) {
         effects.exit("mathFlowFence");
         if (interrupt) return ok(code);
         return effects.attempt(nonLazyContinuation, lineStart, after)(code);
@@ -252,7 +255,7 @@ const mathBlock: Construct = {
     }
 
     function content(code: Code): State | undefined {
-      if (code === null) return after(code);
+      if (code === null) return nok(code);
       if (isLineEnding(code)) return effects.attempt(nonLazyContinuation, lineStart, after)(code);
       effects.enter("mathFlowValue");
       return value(code);

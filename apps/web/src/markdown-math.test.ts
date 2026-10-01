@@ -117,6 +117,8 @@ describe("chat math parsing", () => {
       expect(() => parse(message.slice(0, end))).not.toThrow();
     }
     expect(text("Energy \\(E = mc")).toBe("Energy (E = mc");
+    expect(formulas("$$\nx^2")).toEqual([]);
+    expect(formulas("\\[\nx^2\n- y")).toEqual([]);
     expect(formulas(message)).toEqual([
       ["inline", "E = mc^2"],
       ["display", "\\sum_i x_i"],
