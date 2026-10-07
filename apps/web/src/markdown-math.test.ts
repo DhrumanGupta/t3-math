@@ -74,6 +74,17 @@ describe("chat math parsing", () => {
   it("leaves code, escapes, links, and citations alone", () => {
     for (const [markdown, rendered] of [
       ["Use `$x$` in code.", "Use  in code."],
+      ["It costs $5 and $10, and `$HOME` stays code.", "It costs $5 and $10, and  stays code."],
+      ["Export $PATH, then `$HOME`.", "Export $PATH, then ."],
+      ["\\(a `\\)` b", "(a  b"],
+      [
+        "Set $TOKEN, then open [users](https://graph.microsoft.com/v1.0/users?$select=id).",
+        "Set $TOKEN, then open users.",
+      ],
+      [
+        "Set $TOKEN, then open <https://graph.microsoft.com/v1.0/users?$select=id>.",
+        "Set $TOKEN, then open https://graph.microsoft.com/v1.0/users?$select=id.",
+      ],
       ["```\n$x$ \\(y\\)\n```", ""],
       ["Escaped \\$x\\$ stays.", "Escaped $x$ stays."],
       ["Escaped \\\\(x\\\\) stays.", "Escaped \\(x\\) stays."],
