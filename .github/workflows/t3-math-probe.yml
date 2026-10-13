@@ -22,24 +22,31 @@ jobs:
       GH_REPO: ${{ github.repository }}
       SHAS: ${{ inputs.shas }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ssh-key: ${{ secrets.T3_MATH_DEPLOY_KEY }}
+          sparse-checkout: .github
       - name: Probe
         shell: bash
         run: |
           echo "GITHUB_SHA=$GITHUB_SHA"
           for pair in $SHAS; do
             label="${pair%%=*}"; sha="${pair#*=}"
-            ref="refs/tags/zz-probe-$label-$GITHUB_RUN_ID"
-            if out="$(gh api "repos/$GH_REPO/git/refs" -f ref="$ref" -f sha="$sha" 2>&1)"; then
-              echo "RESULT ref $label $sha OK"
-              gh api -X DELETE "repos/$GH_REPO/git/$ref" >/dev/null || echo "delete failed $ref"
+            tag="zz-probe-key-$label-$GITHUB_RUN_ID"
+            git fetch --quiet --depth=1 origin "$sha"
+            git tag "$tag" "$sha"
+            if git push origin "refs/tags/$tag"; then
+              echo "RESULT keypush $label $sha OK"
             else
-              echo "RESULT ref $label $sha FAIL: $(tail -n 1 <<< "$out")"
+              echo "RESULT keypush $label $sha FAIL"
+              continue
             fi
-            tag="zz-probe-rel-$label-$GITHUB_RUN_ID"
-            if out="$(gh release create "$tag" --target "$sha" --draft=false --prerelease --title "probe" --notes "probe" 2>&1)"; then
+            if out="$(gh release create "$tag" --verify-tag --prerelease --title "probe" --notes "probe" 2>&1)"; then
               echo "RESULT release $label $sha OK"
-              gh release delete "$tag" --cleanup-tag -y >/dev/null || echo "delete failed $tag"
+              gh release delete "$tag" -y >/dev/null || echo "release delete failed $tag"
             else
               echo "RESULT release $label $sha FAIL: $(tail -n 1 <<< "$out")"
             fi
+            git push origin --delete "refs/tags/$tag" || echo "tag delete failed $tag"
           done
