@@ -1,0 +1,287 @@
+name: T3 Math release
+
+# Weekly T3 Math build. Each track merges its upstream target into its own
+# branch, checks the math rendering tests, builds an unsigned macOS arm64 DMG,
+# and publishes it as a GitHub Release on this repository.
+#
+#   main     -> branch `math`          follows pingdotgg/t3code main
+#   nightly  -> branch `math-nightly`  follows the latest upstream nightly tag
+#
+# The branch is pushed only after the build succeeds, so each branch always
+# points at a commit that built. See FORK.md.
+
+on:
+  schedule:
+    # Mondays 03:17 UTC.
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+    inputs:
+      track:
+        description: "Track to build"
+        required: false
+        default: both
+        type: choice
+        options:
+          - both
+          - main
+          - nightly
+      force:
+        description: "Build even when the branch already contains the upstream target"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  release:
+    name: ${{ matrix.track }}
+    if: github.repository != 'pingdotgg/t3code'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - track: main
+            branch: math
+          - track: nightly
+            branch: math-nightly
+    runs-on: macos-15
+    timeout-minutes: 90
+    concurrency:
+      group: t3-math-release-${{ matrix.track }}
+      cancel-in-progress: false
+    env:
+      UPSTREAM_URL: https://github.com/pingdotgg/t3code.git
+      TRACK: ${{ matrix.track }}
+      BRANCH: ${{ matrix.branch }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check track selection
+        id: select
+        shell: bash
+        env:
+          REQUESTED: ${{ inputs.track || 'both' }}
+        run: |
+          if [[ "$REQUESTED" == "both" || "$REQUESTED" == "$TRACK" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # The deploy key pushes the merge. The workflow token cannot push
+      # upstream's changes to .github/workflows.
+      - name: Checkout
+        if: steps.select.outputs.run == 'true'
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ matrix.branch }}
+          ssh-key: ${{ secrets.T3_MATH_DEPLOY_KEY }}
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+
+      - name: Resolve upstream target
+        if: steps.select.outputs.run == 'true'
+        id: target
+        shell: bash
+        env:
+          FORCE: ${{ inputs.force || 'false' }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream "$UPSTREAM_URL"
+
+          nightly_tag="$(
+            git ls-remote --tags --refs upstream 'v*-nightly.*' |
+              sed 's#.*refs/tags/##' |
+              sort -V |
+              tail -n 1
+          )"
+          if [[ -z "$nightly_tag" ]]; then
+            echo "No upstream nightly tag found." >&2
+            exit 1
+          fi
+
+          if [[ "$TRACK" == "nightly" ]]; then
+            git fetch --no-tags --filter=blob:none upstream "refs/tags/$nightly_tag:refs/tags/$nightly_tag"
+            target_sha="$(git rev-parse "$nightly_tag^{commit}")"
+            target_label="$nightly_tag"
+          else
+            git fetch --no-tags --filter=blob:none upstream main
+            target_sha="$(git rev-parse FETCH_HEAD)"
+            target_label="main@${target_sha:0:9}"
+          fi
+
+          # Nightly tags carry the version the next stable will ship as.
+          base_version="${nightly_tag#v}"
+          base_version="${base_version%%-*}"
+          # The preview suffix is upstream's format for builds with no update
+          # feed, so the app never polls for an update it cannot install.
+          version="${base_version}-preview.$(date -u +%Y%m%d).${GITHUB_RUN_NUMBER}"
+
+          if [[ "$FORCE" != "true" ]] && git merge-base --is-ancestor "$target_sha" HEAD; then
+            echo "$BRANCH already contains $target_label."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+          {
+            echo "sha=$target_sha"
+            echo "label=$target_label"
+            echo "version=$version"
+            echo "release_tag=math-$TRACK-$(date -u +%Y%m%d).${GITHUB_RUN_NUMBER}"
+            echo "previous_sha=$(git merge-base "$target_sha" HEAD)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Merge upstream
+        if: steps.target.outputs.build == 'true'
+        id: merge
+        shell: bash
+        env:
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+          TARGET_LABEL: ${{ steps.target.outputs.label }}
+        run: |
+          set -euo pipefail
+          echo "lockfile_conflict=false" >> "$GITHUB_OUTPUT"
+          if git merge --no-edit -m "Merge upstream $TARGET_LABEL into $BRANCH" "$TARGET_SHA"; then
+            exit 0
+          fi
+
+          conflicts="$(git diff --name-only --diff-filter=U)"
+          if [[ "$conflicts" == "pnpm-lock.yaml" ]]; then
+            # Take upstream's lockfile; the install step adds our packages back.
+            git checkout --theirs pnpm-lock.yaml
+            git add pnpm-lock.yaml
+            echo "lockfile_conflict=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          {
+            echo "Merging upstream \`$TARGET_LABEL\` into \`$BRANCH\` conflicted in:"
+            echo
+            echo '```'
+            echo "$conflicts"
+            echo '```'
+            echo
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            echo "Resolve by merging \`$TARGET_SHA\` into \`$BRANCH\` by hand, then rerun the workflow."
+          } > "$RUNNER_TEMP/conflict.md"
+          title="Upstream merge conflict on $BRANCH"
+          existing="$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')"
+          if [[ -n "$existing" ]]; then
+            gh issue comment "$existing" --body-file "$RUNNER_TEMP/conflict.md"
+          else
+            gh issue create --title "$title" --body-file "$RUNNER_TEMP/conflict.md"
+          fi
+          exit 1
+
+      - name: Setup Vite+
+        if: steps.target.outputs.build == 'true'
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+
+      - name: Install dependencies
+        if: steps.target.outputs.build == 'true'
+        shell: bash
+        env:
+          LOCKFILE_CONFLICT: ${{ steps.merge.outputs.lockfile_conflict }}
+        run: |
+          set -euo pipefail
+          filters=(--filter=t3... --filter=@t3tools/web... --filter=@t3tools/desktop... --filter=@t3tools/scripts...)
+          if [[ "$LOCKFILE_CONFLICT" == "true" ]]; then
+            vp install --no-frozen-lockfile
+            git add pnpm-lock.yaml
+            git commit --no-edit
+          else
+            vp install "${filters[@]}"
+          fi
+
+      - name: Test math rendering
+        if: steps.target.outputs.build == 'true'
+        run: >-
+          vp test run
+          apps/web/src/markdown-math.test.ts
+          apps/web/src/markdown-clipboard.math.test.ts
+          apps/web/src/components/ChatMarkdown.test.tsx
+
+      # The public T3 Connect identifiers official builds ship with. Not secrets.
+      - name: Enable T3 Connect
+        if: steps.target.outputs.build == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          grep -E '^T3CODE_[A-Z_]+=' .env.example >> "$GITHUB_ENV"
+
+      - name: Build desktop artifact
+        if: steps.target.outputs.build == 'true'
+        shell: bash
+        env:
+          VERSION: ${{ steps.target.outputs.version }}
+        run: |
+          set -euo pipefail
+          node scripts/update-release-package-versions.ts "$VERSION"
+          vp run dist:desktop:artifact \
+            --platform mac \
+            --target dmg \
+            --arch arm64 \
+            --build-version "$VERSION" \
+            --verbose
+          ls -la release
+
+      - name: Push branch
+        if: steps.target.outputs.build == 'true'
+        shell: bash
+        env:
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          set -euo pipefail
+          git push origin "HEAD:refs/heads/$BRANCH"
+          if [[ "$TRACK" == "main" ]]; then
+            # Keep this repository's main an untouched upstream mirror.
+            git push origin "$TARGET_SHA:refs/heads/main"
+          fi
+
+      - name: Publish release
+        if: steps.target.outputs.build == 'true'
+        shell: bash
+        env:
+          VERSION: ${{ steps.target.outputs.version }}
+          RELEASE_TAG: ${{ steps.target.outputs.release_tag }}
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
+          TARGET_LABEL: ${{ steps.target.outputs.label }}
+          PREVIOUS_SHA: ${{ steps.target.outputs.previous_sha }}
+        run: |
+          set -euo pipefail
+          {
+            echo "T3 Math is [T3 Code](https://github.com/pingdotgg/t3code) with opt-in LaTeX rendering."
+            echo "Turn it on under Settings > Appearance."
+            echo
+            echo "- Track: \`$TRACK\` (branch \`$BRANCH\`)"
+            echo "- Upstream: \`$TARGET_LABEL\` ([$TARGET_SHA](https://github.com/pingdotgg/t3code/commit/$TARGET_SHA))"
+            echo "- Upstream changes since the last build: https://github.com/pingdotgg/t3code/compare/$PREVIOUS_SHA...$TARGET_SHA"
+            echo
+            echo "The app is unsigned. On first launch, right-click it and choose Open, or run"
+            echo "\`xattr -dr com.apple.quarantine \"/Applications/T3 Math.app\"\`."
+            echo "Report problems here, not upstream."
+          } > "$RUNNER_TEMP/notes.md"
+
+          flags=(--prerelease)
+          if [[ "$TRACK" == "nightly" ]]; then
+            flags=(--latest)
+          fi
+          gh release create "$RELEASE_TAG" release/*.dmg \
+            --target "$(git rev-parse HEAD)" \
+            --title "T3 Math $VERSION ($TRACK)" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            "${flags[@]}"
