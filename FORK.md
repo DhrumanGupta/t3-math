@@ -37,13 +37,15 @@ npm or upstream's releases.
 | `main`         | untouched upstream mirror   | none                  |
 
 Every Monday the sync workflow merges each upstream target into its branch, runs the math tests,
-pushes the branch, and starts the build workflow on it. The build packages unsigned apps for macOS
+pushes the branch, and starts the build workflow on it. The build packages apps for macOS
 (arm64, x64), Linux (x64, arm64; AppImage and `.deb`) and Windows (x64, arm64) with upstream's own
 `release-desktop.yml`, then publishes them under [Releases](../../releases). Run the sync workflow
 by hand from the Actions tab to build sooner.
 
-Builds are unsigned and carry no update feed. Download the new installer to update. On macOS,
-right-click the app and choose Open on first launch.
+Builds carry no update feed. Download the new installer to update. They are not signed with a
+developer certificate; the macOS apps are signed ad hoc, so macOS blocks them on first launch.
+Allow the app under System Settings → Privacy & Security → Open Anyway, or run
+`xattr -dr com.apple.quarantine "/Applications/T3 Math.app"`.
 
 ## When a merge conflicts
 
