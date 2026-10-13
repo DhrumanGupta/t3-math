@@ -1,0 +1,45 @@
+name: T3 Math probe
+
+# Temporary: finds which commits the workflow token may tag.
+
+on:
+  workflow_dispatch:
+    inputs:
+      shas:
+        description: "Space-separated label=sha pairs"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      SHAS: ${{ inputs.shas }}
+    steps:
+      - name: Probe
+        shell: bash
+        run: |
+          echo "GITHUB_SHA=$GITHUB_SHA"
+          for pair in $SHAS; do
+            label="${pair%%=*}"; sha="${pair#*=}"
+            ref="refs/tags/zz-probe-$label-$GITHUB_RUN_ID"
+            if out="$(gh api "repos/$GH_REPO/git/refs" -f ref="$ref" -f sha="$sha" 2>&1)"; then
+              echo "RESULT ref $label $sha OK"
+              gh api -X DELETE "repos/$GH_REPO/git/$ref" >/dev/null || echo "delete failed $ref"
+            else
+              echo "RESULT ref $label $sha FAIL: $(tail -n 1 <<< "$out")"
+            fi
+            tag="zz-probe-rel-$label-$GITHUB_RUN_ID"
+            if out="$(gh release create "$tag" --target "$sha" --draft=false --prerelease --title "probe" --notes "probe" 2>&1)"; then
+              echo "RESULT release $label $sha OK"
+              gh release delete "$tag" --cleanup-tag -y >/dev/null || echo "delete failed $tag"
+            else
+              echo "RESULT release $label $sha FAIL: $(tail -n 1 <<< "$out")"
+            fi
+          done
