@@ -11,7 +11,8 @@ It is not affiliated with or supported by the T3 Code team. Report problems with
 - LaTeX rendering from [pingdotgg/t3code#14574](https://github.com/pingdotgg/t3code/pull/14574)
   by Hjalmar Karlsen, merged at `2d2a16f4`.
 - The desktop app is named "T3 Math".
-- [`.github/workflows/t3-math-release.yml`](.github/workflows/t3-math-release.yml) and this file.
+- [`t3-math-sync.yml`](.github/workflows/t3-math-sync.yml),
+  [`t3-math-build.yml`](.github/workflows/t3-math-build.yml) and this file.
 
 The app ID and the `t3code://` URL scheme are upstream's, so T3 Connect sign-in works and the app
 shares `~/.t3` with T3 Code. Install one or the other, not both.
@@ -24,15 +25,17 @@ shares `~/.t3` with T3 Code. Install one or the other, not both.
 | `math-nightly` | latest upstream nightly tag | marked latest         |
 | `main`         | untouched upstream mirror   | none                  |
 
-Every Monday the release workflow merges each upstream target into its branch, runs the math
-tests, builds an unsigned macOS arm64 DMG, and publishes it under
-[Releases](../../releases). Run it by hand from the Actions tab to build sooner.
+Every Monday the sync workflow merges each upstream target into its branch, runs the math tests,
+pushes the branch, and starts the build workflow on it. The build packages unsigned apps for macOS
+(arm64, x64), Linux (x64, arm64; AppImage and `.deb`) and Windows (x64, arm64) with upstream's own
+`release-desktop.yml`, then publishes them under [Releases](../../releases). Run the sync workflow
+by hand from the Actions tab to build sooner.
 
-Builds are unsigned and carry no update feed. Download the new DMG to update. On first launch,
-right-click the app and choose Open.
+Builds are unsigned and carry no update feed. Download the new installer to update. On macOS,
+right-click the app and choose Open on first launch.
 
 ## When a merge conflicts
 
 A conflict in `pnpm-lock.yaml` alone is resolved automatically. Anything else fails the run and
 opens an issue listing the files. Merge the upstream commit into the branch by hand, push, and
-rerun the workflow.
+rerun the sync workflow.

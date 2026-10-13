@@ -1,0 +1,315 @@
+name: T3 Math build
+
+# Builds unsigned T3 Math desktop apps for every platform upstream ships and
+# publishes them as one GitHub Release. Started by t3-math-sync.yml on the
+# branch to build; run it by hand on `math` or `math-nightly` to rebuild.
+#
+# Packaging is upstream's own release-desktop.yml, on GitHub-hosted runners
+# and with no signing secrets, so it follows upstream's build as it changes.
+
+on:
+  workflow_dispatch:
+    inputs:
+      track:
+        description: "Track being built"
+        required: true
+        type: choice
+        options:
+          - main
+          - nightly
+      version:
+        description: "Version, as X.Y.Z-preview.YYYYMMDD.N so the app carries no update feed"
+        required: true
+        type: string
+      upstream_label:
+        description: "Upstream ref this branch was synced to"
+        required: false
+        type: string
+      upstream_sha:
+        description: "Upstream commit this branch was synced to"
+        required: false
+        type: string
+      previous_sha:
+        description: "Upstream commit of the previous sync"
+        required: false
+        type: string
+
+run-name: T3 Math ${{ inputs.version }} (${{ inputs.track }})
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: t3-math-build-${{ inputs.track }}
+  cancel-in-progress: false
+
+jobs:
+  build_bundle:
+    name: Build JS bundle
+    if: github.repository != 'pingdotgg/t3code'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    outputs:
+      clerk_publishable_key: ${{ steps.config.outputs.T3CODE_CLERK_PUBLISHABLE_KEY }}
+      clerk_jwt_template: ${{ steps.config.outputs.T3CODE_CLERK_JWT_TEMPLATE }}
+      clerk_cli_oauth_client_id: ${{ steps.config.outputs.T3CODE_CLERK_CLI_OAUTH_CLIENT_ID }}
+      relay_url: ${{ steps.config.outputs.T3CODE_RELAY_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+
+      # The public T3 Connect identifiers official builds ship with. Not secrets.
+      - name: Read T3 Connect configuration
+        id: config
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -E '^T3CODE_[A-Z_]+=' .env.example | tee -a "$GITHUB_ENV" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+
+      - name: Install bundle dependencies
+        run: vp install --filter=t3... --filter=@t3tools/web... --filter=@t3tools/desktop... --filter=@t3tools/scripts...
+
+      - name: Align package versions to release version
+        run: node scripts/update-release-package-versions.ts "${{ inputs.version }}"
+
+      - name: Install browser secret helper build libraries
+        run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev pkg-config
+
+      - name: Build JS bundle
+        run: vp run build:desktop
+
+      - name: Upload JS bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: js-bundle
+          path: |
+            apps/server/dist
+            apps/desktop/dist-electron
+          if-no-files-found: error
+          retention-days: 1
+
+  desktop_mac_arm64:
+    name: Desktop macOS arm64
+    needs: [build_bundle]
+    uses: ./.github/workflows/release-desktop.yml
+    with:
+      version: ${{ inputs.version }}
+      ref: ${{ github.sha }}
+      release_channel: preview
+      relay_client_tracing: false
+      clerk_publishable_key: ${{ needs.build_bundle.outputs.clerk_publishable_key }}
+      clerk_jwt_template: ${{ needs.build_bundle.outputs.clerk_jwt_template }}
+      clerk_cli_oauth_client_id: ${{ needs.build_bundle.outputs.clerk_cli_oauth_client_id }}
+      relay_url: ${{ needs.build_bundle.outputs.relay_url }}
+      label: macOS arm64
+      runner: macos-15
+      platform: mac
+      target: dmg
+      arch: arm64
+      rust_target: aarch64-apple-darwin
+      resource_key: darwin-arm64
+      cli_archive: false
+
+  desktop_mac_x64:
+    name: Desktop macOS x64
+    needs: [build_bundle]
+    uses: ./.github/workflows/release-desktop.yml
+    with:
+      version: ${{ inputs.version }}
+      ref: ${{ github.sha }}
+      release_channel: preview
+      relay_client_tracing: false
+      clerk_publishable_key: ${{ needs.build_bundle.outputs.clerk_publishable_key }}
+      clerk_jwt_template: ${{ needs.build_bundle.outputs.clerk_jwt_template }}
+      clerk_cli_oauth_client_id: ${{ needs.build_bundle.outputs.clerk_cli_oauth_client_id }}
+      relay_url: ${{ needs.build_bundle.outputs.relay_url }}
+      label: macOS x64
+      runner: macos-15-intel
+      platform: mac
+      target: dmg
+      arch: x64
+      rust_target: x86_64-apple-darwin
+      resource_key: darwin-x64
+      cli_archive: false
+
+  # The Linux jobs also build the CLI archive: the same-arch Windows job
+  # embeds it as the WSL runtime and waits for it.
+  desktop_linux_x64:
+    name: Desktop Linux x64
+    needs: [build_bundle]
+    uses: ./.github/workflows/release-desktop.yml
+    with:
+      version: ${{ inputs.version }}
+      ref: ${{ github.sha }}
+      release_channel: preview
+      relay_client_tracing: false
+      clerk_publishable_key: ${{ needs.build_bundle.outputs.clerk_publishable_key }}
+      clerk_jwt_template: ${{ needs.build_bundle.outputs.clerk_jwt_template }}
+      clerk_cli_oauth_client_id: ${{ needs.build_bundle.outputs.clerk_cli_oauth_client_id }}
+      relay_url: ${{ needs.build_bundle.outputs.relay_url }}
+      label: Linux x64
+      runner: ubuntu-24.04
+      platform: linux
+      target: AppImage
+      arch: x64
+      rust_target: x86_64-unknown-linux-gnu
+      resource_key: linux-x64
+      cli_archive: true
+
+  desktop_linux_arm64:
+    name: Desktop Linux arm64
+    needs: [build_bundle]
+    uses: ./.github/workflows/release-desktop.yml
+    with:
+      version: ${{ inputs.version }}
+      ref: ${{ github.sha }}
+      release_channel: preview
+      relay_client_tracing: false
+      clerk_publishable_key: ${{ needs.build_bundle.outputs.clerk_publishable_key }}
+      clerk_jwt_template: ${{ needs.build_bundle.outputs.clerk_jwt_template }}
+      clerk_cli_oauth_client_id: ${{ needs.build_bundle.outputs.clerk_cli_oauth_client_id }}
+      relay_url: ${{ needs.build_bundle.outputs.relay_url }}
+      label: Linux arm64
+      runner: ubuntu-24.04-arm
+      platform: linux
+      target: AppImage
+      arch: arm64
+      rust_target: aarch64-unknown-linux-gnu
+      resource_key: linux-arm64
+      cli_archive: true
+
+  desktop_win_x64:
+    name: Desktop Windows x64
+    needs: [build_bundle]
+    uses: ./.github/workflows/release-desktop.yml
+    with:
+      version: ${{ inputs.version }}
+      ref: ${{ github.sha }}
+      release_channel: preview
+      relay_client_tracing: false
+      clerk_publishable_key: ${{ needs.build_bundle.outputs.clerk_publishable_key }}
+      clerk_jwt_template: ${{ needs.build_bundle.outputs.clerk_jwt_template }}
+      clerk_cli_oauth_client_id: ${{ needs.build_bundle.outputs.clerk_cli_oauth_client_id }}
+      relay_url: ${{ needs.build_bundle.outputs.relay_url }}
+      label: Windows x64
+      runner: windows-2025
+      platform: win
+      target: nsis
+      arch: x64
+      rust_target: x86_64-pc-windows-msvc
+      resource_key: win32-x64
+      cli_archive: false
+
+  desktop_win_arm64:
+    name: Desktop Windows arm64
+    needs: [build_bundle]
+    uses: ./.github/workflows/release-desktop.yml
+    with:
+      version: ${{ inputs.version }}
+      ref: ${{ github.sha }}
+      release_channel: preview
+      relay_client_tracing: false
+      clerk_publishable_key: ${{ needs.build_bundle.outputs.clerk_publishable_key }}
+      clerk_jwt_template: ${{ needs.build_bundle.outputs.clerk_jwt_template }}
+      clerk_cli_oauth_client_id: ${{ needs.build_bundle.outputs.clerk_cli_oauth_client_id }}
+      relay_url: ${{ needs.build_bundle.outputs.relay_url }}
+      label: Windows arm64
+      runner: windows-11-arm
+      platform: win
+      target: nsis
+      arch: arm64
+      rust_target: aarch64-pc-windows-msvc
+      resource_key: win32-arm64
+      cli_archive: false
+
+  # Publishes every platform that built, then fails if any did not, so one
+  # broken target does not hold back the rest.
+  publish:
+    name: Publish release
+    needs:
+      - desktop_mac_arm64
+      - desktop_mac_x64
+      - desktop_linux_x64
+      - desktop_linux_arm64
+      - desktop_win_x64
+      - desktop_win_arm64
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TRACK: ${{ inputs.track }}
+      VERSION: ${{ inputs.version }}
+      UPSTREAM_LABEL: ${{ inputs.upstream_label }}
+      UPSTREAM_SHA: ${{ inputs.upstream_sha }}
+      PREVIOUS_SHA: ${{ inputs.previous_sha }}
+      FAILED: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
+    steps:
+      - name: Download desktop artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: desktop-*
+          merge-multiple: true
+          path: release-assets
+
+      - name: Publish release
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          assets=(release-assets/*.dmg release-assets/*.AppImage release-assets/*.deb release-assets/*.exe)
+          if [[ "${#assets[@]}" -eq 0 ]]; then
+            echo "No platform built; nothing to publish." >&2
+            exit 1
+          fi
+
+          {
+            echo "T3 Math is [T3 Code](https://github.com/pingdotgg/t3code) with opt-in LaTeX rendering."
+            echo "Turn on **Render math** under Settings → Appearance."
+            echo
+            echo "- Track: \`$TRACK\` (branch \`$GITHUB_REF_NAME\`, commit \`${GITHUB_SHA:0:9}\`)"
+            if [[ -n "$UPSTREAM_SHA" ]]; then
+              echo "- Upstream: \`$UPSTREAM_LABEL\` ([${UPSTREAM_SHA:0:9}](https://github.com/pingdotgg/t3code/commit/$UPSTREAM_SHA))"
+            fi
+            if [[ -n "$PREVIOUS_SHA" && "$PREVIOUS_SHA" != "$UPSTREAM_SHA" ]]; then
+              echo "- Upstream changes since the last build: https://github.com/pingdotgg/t3code/compare/$PREVIOUS_SHA...$UPSTREAM_SHA"
+            fi
+            if [[ "$FAILED" == "true" ]]; then
+              echo "- Some platforms failed to build and are missing from this release."
+            fi
+            echo
+            echo "The apps are unsigned. On macOS, right-click the app and choose Open on first launch, or run"
+            echo "\`xattr -dr com.apple.quarantine \"/Applications/T3 Math.app\"\`."
+            echo "Report problems here, not upstream."
+          } > notes.md
+
+          flags=(--prerelease)
+          if [[ "$TRACK" == "nightly" && "$FAILED" != "true" ]]; then
+            flags=(--latest)
+          fi
+          gh release create "math-$TRACK-v$VERSION" "${assets[@]}" \
+            --target "$GITHUB_SHA" \
+            --title "T3 Math $VERSION ($TRACK)" \
+            --notes-file notes.md \
+            "${flags[@]}"
+
+          if [[ "$FAILED" == "true" ]]; then
+            echo "One or more platform builds failed." >&2
+            exit 1
+          fi

@@ -1,14 +1,14 @@
-name: T3 Math release
+name: T3 Math sync
 
-# Weekly T3 Math build. Each track merges its upstream target into its own
-# branch, checks the math rendering tests, builds an unsigned macOS arm64 DMG,
-# and publishes it as a GitHub Release on this repository.
+# Weekly upstream sync. Each track merges its upstream target into its own
+# branch, checks the math rendering tests, pushes the branch, and starts
+# t3-math-build.yml on it.
 #
 #   main     -> branch `math`          follows pingdotgg/t3code main
 #   nightly  -> branch `math-nightly`  follows the latest upstream nightly tag
 #
-# The branch is pushed only after the build succeeds, so each branch always
-# points at a commit that built. See FORK.md.
+# The build runs from the pushed branch, so it uses that branch's own copy of
+# upstream's packaging workflow. See FORK.md.
 
 on:
   schedule:
@@ -17,7 +17,7 @@ on:
   workflow_dispatch:
     inputs:
       track:
-        description: "Track to build"
+        description: "Track to sync"
         required: false
         default: both
         type: choice
@@ -32,11 +32,12 @@ on:
         type: boolean
 
 permissions:
-  contents: write
+  actions: write
+  contents: read
   issues: write
 
 jobs:
-  release:
+  sync:
     name: ${{ matrix.track }}
     if: github.repository != 'pingdotgg/t3code'
     strategy:
@@ -47,10 +48,10 @@ jobs:
             branch: math
           - track: nightly
             branch: math-nightly
-    runs-on: macos-15
-    timeout-minutes: 90
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     concurrency:
-      group: t3-math-release-${{ matrix.track }}
+      group: t3-math-sync-${{ matrix.track }}
       cancel-in-progress: false
     env:
       UPSTREAM_URL: https://github.com/pingdotgg/t3code.git
@@ -125,22 +126,24 @@ jobs:
           # feed, so the app never polls for an update it cannot install.
           version="${base_version}-preview.$(date -u +%Y%m%d).${GITHUB_RUN_NUMBER}"
 
-          if [[ "$FORCE" != "true" ]] && git merge-base --is-ancestor "$target_sha" HEAD; then
+          previous_sha="$(git merge-base "$target_sha" HEAD)"
+          if git merge-base --is-ancestor "$target_sha" HEAD; then
             echo "$BRANCH already contains $target_label."
-            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "merge=false" >> "$GITHUB_OUTPUT"
+            echo "build=$FORCE" >> "$GITHUB_OUTPUT"
           else
+            echo "merge=true" >> "$GITHUB_OUTPUT"
             echo "build=true" >> "$GITHUB_OUTPUT"
           fi
           {
             echo "sha=$target_sha"
             echo "label=$target_label"
             echo "version=$version"
-            echo "release_tag=math-$TRACK-$(date -u +%Y%m%d).${GITHUB_RUN_NUMBER}"
-            echo "previous_sha=$(git merge-base "$target_sha" HEAD)"
+            echo "previous_sha=$previous_sha"
           } >> "$GITHUB_OUTPUT"
 
       - name: Merge upstream
-        if: steps.target.outputs.build == 'true'
+        if: steps.target.outputs.merge == 'true'
         id: merge
         shell: bash
         env:
@@ -183,7 +186,7 @@ jobs:
           exit 1
 
       - name: Setup Vite+
-        if: steps.target.outputs.build == 'true'
+        if: steps.target.outputs.merge == 'true'
         uses: voidzero-dev/setup-vp@v1
         with:
           node-version-file: package.json
@@ -191,56 +194,30 @@ jobs:
           run-install: false
 
       - name: Install dependencies
-        if: steps.target.outputs.build == 'true'
+        if: steps.target.outputs.merge == 'true'
         shell: bash
         env:
           LOCKFILE_CONFLICT: ${{ steps.merge.outputs.lockfile_conflict }}
         run: |
           set -euo pipefail
-          filters=(--filter=t3... --filter=@t3tools/web... --filter=@t3tools/desktop... --filter=@t3tools/scripts...)
           if [[ "$LOCKFILE_CONFLICT" == "true" ]]; then
             vp install --no-frozen-lockfile
             git add pnpm-lock.yaml
             git commit --no-edit
           else
-            vp install "${filters[@]}"
+            vp install --filter=@t3tools/web...
           fi
 
       - name: Test math rendering
-        if: steps.target.outputs.build == 'true'
+        if: steps.target.outputs.merge == 'true'
         run: >-
           vp test run
           apps/web/src/markdown-math.test.ts
           apps/web/src/markdown-clipboard.math.test.ts
           apps/web/src/components/ChatMarkdown.test.tsx
 
-      # The public T3 Connect identifiers official builds ship with. Not secrets.
-      - name: Enable T3 Connect
-        if: steps.target.outputs.build == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          cp .env.example .env
-          grep -E '^T3CODE_[A-Z_]+=' .env.example >> "$GITHUB_ENV"
-
-      - name: Build desktop artifact
-        if: steps.target.outputs.build == 'true'
-        shell: bash
-        env:
-          VERSION: ${{ steps.target.outputs.version }}
-        run: |
-          set -euo pipefail
-          node scripts/update-release-package-versions.ts "$VERSION"
-          vp run dist:desktop:artifact \
-            --platform mac \
-            --target dmg \
-            --arch arm64 \
-            --build-version "$VERSION" \
-            --verbose
-          ls -la release
-
       - name: Push branch
-        if: steps.target.outputs.build == 'true'
+        if: steps.target.outputs.merge == 'true'
         shell: bash
         env:
           TARGET_SHA: ${{ steps.target.outputs.sha }}
@@ -252,36 +229,19 @@ jobs:
             git push origin "$TARGET_SHA:refs/heads/main"
           fi
 
-      - name: Publish release
+      - name: Start build
         if: steps.target.outputs.build == 'true'
         shell: bash
         env:
           VERSION: ${{ steps.target.outputs.version }}
-          RELEASE_TAG: ${{ steps.target.outputs.release_tag }}
           TARGET_SHA: ${{ steps.target.outputs.sha }}
           TARGET_LABEL: ${{ steps.target.outputs.label }}
           PREVIOUS_SHA: ${{ steps.target.outputs.previous_sha }}
         run: |
-          set -euo pipefail
-          {
-            echo "T3 Math is [T3 Code](https://github.com/pingdotgg/t3code) with opt-in LaTeX rendering."
-            echo "Turn it on under Settings > Appearance."
-            echo
-            echo "- Track: \`$TRACK\` (branch \`$BRANCH\`)"
-            echo "- Upstream: \`$TARGET_LABEL\` ([$TARGET_SHA](https://github.com/pingdotgg/t3code/commit/$TARGET_SHA))"
-            echo "- Upstream changes since the last build: https://github.com/pingdotgg/t3code/compare/$PREVIOUS_SHA...$TARGET_SHA"
-            echo
-            echo "The app is unsigned. On first launch, right-click it and choose Open, or run"
-            echo "\`xattr -dr com.apple.quarantine \"/Applications/T3 Math.app\"\`."
-            echo "Report problems here, not upstream."
-          } > "$RUNNER_TEMP/notes.md"
-
-          flags=(--prerelease)
-          if [[ "$TRACK" == "nightly" ]]; then
-            flags=(--latest)
-          fi
-          gh release create "$RELEASE_TAG" release/*.dmg \
-            --target "$(git rev-parse HEAD)" \
-            --title "T3 Math $VERSION ($TRACK)" \
-            --notes-file "$RUNNER_TEMP/notes.md" \
-            "${flags[@]}"
+          gh workflow run t3-math-build.yml \
+            --ref "$BRANCH" \
+            -f track="$TRACK" \
+            -f version="$VERSION" \
+            -f upstream_label="$TARGET_LABEL" \
+            -f upstream_sha="$TARGET_SHA" \
+            -f previous_sha="$PREVIOUS_SHA"
