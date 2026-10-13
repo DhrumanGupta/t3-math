@@ -58,6 +58,8 @@ jobs:
       TRACK: ${{ matrix.track }}
       BRANCH: ${{ matrix.branch }}
       GH_TOKEN: ${{ github.token }}
+      # gh otherwise resolves a fork checkout to its parent repository.
+      GH_REPO: ${{ github.repository }}
     steps:
       - name: Check track selection
         id: select
