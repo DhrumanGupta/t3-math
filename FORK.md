@@ -12,14 +12,15 @@ It is not affiliated with or supported by the T3 Code team. Report problems with
 - LaTeX rendering from [pingdotgg/t3code#14574](https://github.com/pingdotgg/t3code/pull/14574)
   by Hjalmar Karlsen, merged at `2d2a16f4`.
 - Math rendering is on by default.
-- The desktop app is named "T3 Math" and installers are named `T3-Math-…`.
+- The desktop app is named "T3 Math", has its own icon (`assets/math/`) and its own app ID
+  (`com.dhrumangupta.t3math`), and installers are named `T3-Math-…`.
 - `README.md` starts with the notice in
   [`.github/t3-math-readme-header.md`](.github/t3-math-readme-header.md).
 - [`t3-math-sync.yml`](.github/workflows/t3-math-sync.yml),
   [`t3-math-build.yml`](.github/workflows/t3-math-build.yml) and this file.
 
-The app ID and the `t3code://` URL scheme are upstream's, so T3 Connect sign-in works and the app
-shares `~/.t3` with T3 Code. Install one or the other, not both.
+The `t3code://` URL scheme and the `~/.t3` data folder are upstream's, so T3 Connect sign-in works
+and T3 Math picks up existing T3 Code threads. Do not run both apps at the same time.
 
 ## Branches and builds
 
