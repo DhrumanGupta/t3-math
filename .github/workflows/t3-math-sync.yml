@@ -141,6 +141,7 @@ jobs:
             echo "sha=$target_sha"
             echo "label=$target_label"
             echo "version=$version"
+            echo "server_version=${nightly_tag#v}"
             echo "previous_sha=$previous_sha"
           } >> "$GITHUB_OUTPUT"
 
@@ -258,6 +259,7 @@ jobs:
         shell: bash
         env:
           VERSION: ${{ steps.target.outputs.version }}
+          SERVER_VERSION: ${{ steps.target.outputs.server_version }}
           TARGET_SHA: ${{ steps.target.outputs.sha }}
           TARGET_LABEL: ${{ steps.target.outputs.label }}
           PREVIOUS_SHA: ${{ steps.target.outputs.previous_sha }}
@@ -266,6 +268,7 @@ jobs:
             --ref "$BRANCH" \
             -f track="$TRACK" \
             -f version="$VERSION" \
+            -f server_version="$SERVER_VERSION" \
             -f upstream_label="$TARGET_LABEL" \
             -f upstream_sha="$TARGET_SHA" \
             -f previous_sha="$PREVIOUS_SHA"

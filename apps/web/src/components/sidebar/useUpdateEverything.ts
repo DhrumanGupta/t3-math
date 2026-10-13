@@ -3,7 +3,7 @@ import { PROVIDER_DISPLAY_NAMES } from "@t3tools/contracts";
 import { Atom } from "effect/reactivity";
 import { useMemo } from "react";
 
-import { APP_VERSION } from "~/branding";
+import { SERVER_TARGET_VERSION } from "~/branding";
 import { isDesktopLocalConnectionTarget } from "~/connection/desktopLocal";
 import { isElectron } from "~/env";
 import { useEnvironments } from "~/state/environments";
@@ -27,7 +27,7 @@ import {
  * this app's own download and install when given.
  */
 export function useUpdateEverything(localUpdateVersion: string | null) {
-  const targetVersion = localUpdateVersion ?? APP_VERSION;
+  const targetVersion = localUpdateVersion ?? SERVER_TARGET_VERSION;
   const { environments } = useEnvironments();
   const machinesAtom = useMemo(
     () =>

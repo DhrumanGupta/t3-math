@@ -182,7 +182,7 @@ import {
   useRelayEnvironmentDiscovery,
   usePrimaryEnvironmentId,
 } from "~/state/environments";
-import { APP_VERSION } from "~/branding";
+import { SERVER_TARGET_VERSION } from "~/branding";
 import { requestConfirmDialog } from "~/confirmDialog";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { primaryServerKeybindingsAtom, serverEnvironment } from "~/state/server";
@@ -1720,7 +1720,7 @@ function SavedBackendListRow({
           environmentId={environmentId}
           serverLabel={`${environment.label} server`}
           fromVersion={lastDescriptor?.serverVersion}
-          targetVersion={APP_VERSION}
+          targetVersion={SERVER_TARGET_VERSION}
           label={serverUpdateState.status === "failed" ? "Retry update" : "Update"}
         />
       ) : null}

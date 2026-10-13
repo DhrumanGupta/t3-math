@@ -103,6 +103,8 @@ const layerDesktopEnvironment = Layer.unwrap(
   }),
 );
 
+declare const __T3_MATH_SERVER_VERSION__: string | undefined;
+
 // The remote runs the exact release this app is on, from its self-contained
 // archive, so it needs neither Node nor npm. Development points the remote at
 // a source checkout instead so the two sides can be iterated together.
@@ -116,7 +118,11 @@ const resolveDesktopSshCliRunner = (
       nodeEngineRange: serverPackageJson.engines.node,
     };
   }
-  return { archiveVersion: environment.appVersion };
+  // T3 Math's own version has no upstream release archive; use the upstream
+  // release this build was synced against.
+  const serverVersion =
+    typeof __T3_MATH_SERVER_VERSION__ === "undefined" ? "" : __T3_MATH_SERVER_VERSION__;
+  return { archiveVersion: serverVersion || environment.appVersion };
 };
 
 const layerDesktopSshEnvironment = Layer.unwrap(

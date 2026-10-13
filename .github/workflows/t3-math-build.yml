@@ -21,6 +21,10 @@ on:
         description: "Version, as X.Y.Z-preview.YYYYMMDD.N so the app carries no update feed"
         required: true
         type: string
+      server_version:
+        description: "Published upstream version that remote servers are updated to"
+        required: false
+        type: string
       upstream_label:
         description: "Upstream ref this branch was synced to"
         required: false
@@ -89,6 +93,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev pkg-config
 
       - name: Build JS bundle
+        env:
+          T3_MATH_SERVER_VERSION: ${{ inputs.server_version }}
         run: vp run build:desktop
 
       - name: Upload JS bundle

@@ -14,13 +14,19 @@ It is not affiliated with or supported by the T3 Code team. Report problems with
 - Math rendering is on by default.
 - The desktop app is named "T3 Math", has its own icon (`assets/math/`) and its own app ID
   (`com.dhrumangupta.t3math`), and installers are named `T3-Math-…`.
+- Data lives in `~/.t3-math`, and remote servers are updated to the matching upstream nightly.
 - `README.md` starts with the notice in
   [`.github/t3-math-readme-header.md`](.github/t3-math-readme-header.md).
 - [`t3-math-sync.yml`](.github/workflows/t3-math-sync.yml),
   [`t3-math-build.yml`](.github/workflows/t3-math-build.yml) and this file.
 
-The `t3code://` URL scheme and the `~/.t3` data folder are upstream's, so T3 Connect sign-in works
-and T3 Math picks up existing T3 Code threads. Do not run both apps at the same time.
+T3 Math keeps its data in `~/.t3-math` and its own Electron profile (`t3math`), so it does not
+read or change T3 Code's threads and settings, and both apps can be installed side by side. The
+`t3code://` URL scheme is still upstream's, so T3 Connect sign-in works.
+
+Remote hosts run upstream's server. T3 Math updates them to the upstream nightly it was synced
+against (`T3_MATH_SERVER_VERSION` at build time), because its own version is never published to
+npm or upstream's releases.
 
 ## Branches and builds
 
