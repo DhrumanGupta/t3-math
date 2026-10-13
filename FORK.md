@@ -1,7 +1,8 @@
 # T3 Math
 
 T3 Math is a fork of [T3 Code](https://github.com/pingdotgg/t3code) that adds opt-in LaTeX
-rendering to chat. Turn it on under Settings > Appearance. Everything else is upstream, unchanged.
+rendering to chat, on by default. Turn it off with **Render math** under Settings → Appearance.
+Everything else is upstream, unchanged.
 
 It is not affiliated with or supported by the T3 Code team. Report problems with T3 Math
 [here](../../issues), not upstream.
@@ -10,7 +11,10 @@ It is not affiliated with or supported by the T3 Code team. Report problems with
 
 - LaTeX rendering from [pingdotgg/t3code#14574](https://github.com/pingdotgg/t3code/pull/14574)
   by Hjalmar Karlsen, merged at `2d2a16f4`.
-- The desktop app is named "T3 Math".
+- Math rendering is on by default.
+- The desktop app is named "T3 Math" and installers are named `T3-Math-…`.
+- `README.md` starts with the notice in
+  [`.github/t3-math-readme-header.md`](.github/t3-math-readme-header.md).
 - [`t3-math-sync.yml`](.github/workflows/t3-math-sync.yml),
   [`t3-math-build.yml`](.github/workflows/t3-math-build.yml) and this file.
 
@@ -36,6 +40,7 @@ right-click the app and choose Open on first launch.
 
 ## When a merge conflicts
 
-A conflict in `pnpm-lock.yaml` alone is resolved automatically. Anything else fails the run and
+Conflicts in `pnpm-lock.yaml` and `README.md` are resolved automatically: the lockfile is
+regenerated, and the README becomes the T3 Math notice followed by upstream's latest README. Anything else fails the run and
 opens an issue listing the files. Merge the upstream commit into the branch by hand, push, and
 rerun the sync workflow.
