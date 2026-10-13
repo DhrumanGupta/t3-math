@@ -268,6 +268,15 @@ jobs:
       PREVIOUS_SHA: ${{ inputs.previous_sha }}
       FAILED: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
     steps:
+      # The workflow token may not tag a commit whose workflow files differ
+      # from the branch, which happens when the branch moves during a build
+      # or a run is retried later. The deploy key can, so it pushes the tag.
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ssh-key: ${{ secrets.T3_MATH_DEPLOY_KEY }}
+          sparse-checkout: .github
+
       - name: Download desktop artifacts
         uses: actions/download-artifact@v8
         with:
@@ -318,8 +327,11 @@ jobs:
           if [[ "$TRACK" == "nightly" && "$FAILED" != "true" ]]; then
             flags=(--latest)
           fi
-          gh release create "math-$TRACK-v$VERSION" "${assets[@]}" \
-            --target "$GITHUB_SHA" \
+          tag="math-$TRACK-v$VERSION"
+          git tag --force "$tag" "$GITHUB_SHA"
+          git push origin "refs/tags/$tag"
+          gh release create "$tag" "${assets[@]}" \
+            --verify-tag \
             --title "T3 Math $VERSION ($TRACK)" \
             --notes-file notes.md \
             "${flags[@]}"
