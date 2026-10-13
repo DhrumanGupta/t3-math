@@ -17,6 +17,7 @@ It is not affiliated with or supported by the T3 Code team. Report problems with
 - Data lives in `~/.t3-math`, and remote servers are updated to the matching upstream nightly.
 - `README.md` starts with the notice in
   [`.github/t3-math-readme-header.md`](.github/t3-math-readme-header.md).
+- [`RUNNING_INSTRUCTIONS.md`](RUNNING_INSTRUCTIONS.md), the install and first-launch steps.
 - [`t3-math-sync.yml`](.github/workflows/t3-math-sync.yml),
   [`t3-math-build.yml`](.github/workflows/t3-math-build.yml) and this file.
 
@@ -43,11 +44,9 @@ pushes the branch, and starts the build workflow on it. The build packages apps 
 by hand from the Actions tab to build sooner.
 
 Builds carry no update feed. Download the new installer to update. They are not signed with a
-developer certificate; the macOS apps are signed ad hoc, so macOS blocks them on first launch.
-Allow the app under System Settings → Privacy & Security → Open Anyway. If macOS says the app is
-damaged, run `xattr -dr com.apple.quarantine "/Applications/T3 Math.app"` and open it again. On
-Windows, choose More info → Run anyway on the SmartScreen prompt. The
-[README](README.md#installing-t3-math) has the full install steps.
+developer certificate; the macOS apps are signed ad hoc, so macOS and Windows block them on first
+launch. [RUNNING_INSTRUCTIONS.md](RUNNING_INSTRUCTIONS.md) has the steps to open them on each
+system.
 
 ## When a merge conflicts
 
