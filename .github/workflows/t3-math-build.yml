@@ -281,7 +281,7 @@ jobs:
 
           {
             echo "T3 Math is [T3 Code](https://github.com/pingdotgg/t3code) with opt-in LaTeX rendering."
-            echo "Turn on **Render math** under Settings → Appearance."
+            echo "Math rendering is on by default; turn it off with **Render math** under Settings → Appearance."
             echo
             echo "- Track: \`$TRACK\` (branch \`$GITHUB_REF_NAME\`, commit \`${GITHUB_SHA:0:9}\`)"
             if [[ -n "$UPSTREAM_SHA" ]]; then

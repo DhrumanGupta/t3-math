@@ -154,16 +154,38 @@ jobs:
         run: |
           set -euo pipefail
           echo "lockfile_conflict=false" >> "$GITHUB_OUTPUT"
+
+          # README.md is always the T3 Math header followed by upstream's
+          # README, so a conflict there never needs a person.
+          write_readme() {
+            {
+              cat .github/t3-math-readme-header.md
+              git show "$TARGET_SHA:README.md"
+            } > README.md
+            git add README.md
+          }
+
           if git merge --no-edit -m "Merge upstream $TARGET_LABEL into $BRANCH" "$TARGET_SHA"; then
+            write_readme
+            if ! git diff --cached --quiet; then
+              git commit -m "Restore the T3 Math README header"
+            fi
             exit 0
           fi
 
           conflicts="$(git diff --name-only --diff-filter=U)"
-          if [[ "$conflicts" == "pnpm-lock.yaml" ]]; then
-            # Take upstream's lockfile; the install step adds our packages back.
-            git checkout --theirs pnpm-lock.yaml
-            git add pnpm-lock.yaml
-            echo "lockfile_conflict=true" >> "$GITHUB_OUTPUT"
+          unresolved="$(grep -v -x -e README.md -e pnpm-lock.yaml <<< "$conflicts" || true)"
+          if [[ -z "$unresolved" ]]; then
+            write_readme
+            if grep -q -x pnpm-lock.yaml <<< "$conflicts"; then
+              # Take upstream's lockfile; the install step adds our packages
+              # back and concludes the merge.
+              git checkout --theirs pnpm-lock.yaml
+              git add pnpm-lock.yaml
+              echo "lockfile_conflict=true" >> "$GITHUB_OUTPUT"
+            else
+              git commit --no-edit
+            fi
             exit 0
           fi
 
@@ -171,7 +193,7 @@ jobs:
             echo "Merging upstream \`$TARGET_LABEL\` into \`$BRANCH\` conflicted in:"
             echo
             echo '```'
-            echo "$conflicts"
+            echo "$unresolved"
             echo '```'
             echo
             echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
