@@ -301,9 +301,16 @@ jobs:
               echo "- Some platforms failed to build and are missing from this release."
             fi
             echo
-            echo "The apps are not signed with a developer certificate. macOS blocks the app on first launch:"
-            echo "allow it under System Settings → Privacy & Security → Open Anyway, or run"
-            echo "\`xattr -dr com.apple.quarantine \"/Applications/T3 Math.app\"\`."
+            echo "## Running T3 Math"
+            echo
+            echo "The apps are not signed with a paid developer certificate, so macOS and Windows block them on first launch."
+            echo
+            echo "- **macOS:** drag T3 Math to Applications and open it. On the **\"T3 Math\" Not Opened** warning click **Done**, then open System Settings → Privacy & Security, scroll to Security and click **Open Anyway**. Or run \`xattr -dr com.apple.quarantine \"/Applications/T3 Math.app\"\` in Terminal."
+            echo "- **Windows:** run the \`.exe\`. On the **Windows protected your PC** prompt click **More info**, then **Run anyway**."
+            echo "- **Linux:** install the \`.deb\`, or \`chmod +x\` the \`.AppImage\` and run it."
+            echo
+            echo "Full steps: [RUNNING_INSTRUCTIONS.md]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$GITHUB_REF_NAME/RUNNING_INSTRUCTIONS.md)"
+            echo
             echo "Report problems here, not upstream."
           } > notes.md
 
