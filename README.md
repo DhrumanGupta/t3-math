@@ -9,6 +9,21 @@
 >
 > T3 Math is not affiliated with or supported by the T3 Code team. Everything below this notice is upstream's README, unchanged.
 
+## Installing T3 Math
+
+T3 Math is not signed with a paid developer certificate, so your system warns you the first time you open it.
+
+- **macOS:** download the `.dmg` (`arm64` for Apple Silicon, `x64` for Intel) and drag T3 Math to Applications. When macOS blocks it, open System Settings → Privacy & Security and click **Open Anyway**. If macOS says the app is damaged, run this in Terminal and open it again:
+
+  ```sh
+  xattr -dr com.apple.quarantine "/Applications/T3 Math.app"
+  ```
+
+- **Windows:** run the `.exe` installer. On the SmartScreen prompt, click **More info**, then **Run anyway**.
+- **Linux:** install the `.deb`, or make the `.AppImage` executable with `chmod +x` and run it.
+
+T3 Math does not update itself. Download the new build each week to stay current. It keeps its data in `~/.t3-math`, so it can be installed next to T3 Code.
+
 ---
 
 # T3 Code

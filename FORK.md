@@ -44,8 +44,10 @@ by hand from the Actions tab to build sooner.
 
 Builds carry no update feed. Download the new installer to update. They are not signed with a
 developer certificate; the macOS apps are signed ad hoc, so macOS blocks them on first launch.
-Allow the app under System Settings → Privacy & Security → Open Anyway, or run
-`xattr -dr com.apple.quarantine "/Applications/T3 Math.app"`.
+Allow the app under System Settings → Privacy & Security → Open Anyway. If macOS says the app is
+damaged, run `xattr -dr com.apple.quarantine "/Applications/T3 Math.app"` and open it again. On
+Windows, choose More info → Run anyway on the SmartScreen prompt. The
+[README](README.md#installing-t3-math) has the full install steps.
 
 ## When a merge conflicts
 
