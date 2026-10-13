@@ -1,11 +1,12 @@
 name: T3 Math build
 
-# Builds unsigned T3 Math desktop apps for every platform upstream ships and
+# Builds T3 Math desktop apps for every platform upstream ships and
 # publishes them as one GitHub Release. Started by t3-math-sync.yml on the
 # branch to build; run it by hand on `math` or `math-nightly` to rebuild.
 #
 # Packaging is upstream's own release-desktop.yml, on GitHub-hosted runners
 # and with no signing secrets, so it follows upstream's build as it changes.
+# macOS apps are signed ad hoc.
 
 on:
   workflow_dispatch:
@@ -300,7 +301,8 @@ jobs:
               echo "- Some platforms failed to build and are missing from this release."
             fi
             echo
-            echo "The apps are unsigned. On macOS, right-click the app and choose Open on first launch, or run"
+            echo "The apps are not signed with a developer certificate. macOS blocks the app on first launch:"
+            echo "allow it under System Settings → Privacy & Security → Open Anyway, or run"
             echo "\`xattr -dr com.apple.quarantine \"/Applications/T3 Math.app\"\`."
             echo "Report problems here, not upstream."
           } > notes.md
