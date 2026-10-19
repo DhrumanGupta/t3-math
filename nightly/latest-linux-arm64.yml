@@ -1,0 +1,12 @@
+version: 0.1.1-preview.20261019.9
+files:
+  - url: https://github.com/DhrumanGupta/t3-math/releases/download/math-nightly-v0.1.1-preview.20261019.9/T3-Math-0.1.1-preview.20261019.9-arm64.AppImage
+    sha512: /koUzrQ1yu9yT3yT1ai6lmTSp5jahxYT9LXteHQwgEy5zoyx7KRAjX7+hwMs3XXRnZdRdZJYaeq41yFj/YDIoQ==
+    size: 160577703
+    blockMapSize: 167579
+  - url: https://github.com/DhrumanGupta/t3-math/releases/download/math-nightly-v0.1.1-preview.20261019.9/T3-Math-0.1.1-preview.20261019.9-arm64.deb
+    sha512: shbvilh7hvDP1XCcQ0lQ5msvuS8+pOmu8dBGkkKMgTjoySK8SzmgP1ewh/HsdtEe8XRXNY0xcKXJodCPcBh3Cw==
+    size: 129859096
+path: https://github.com/DhrumanGupta/t3-math/releases/download/math-nightly-v0.1.1-preview.20261019.9/T3-Math-0.1.1-preview.20261019.9-arm64.AppImage
+sha512: /koUzrQ1yu9yT3yT1ai6lmTSp5jahxYT9LXteHQwgEy5zoyx7KRAjX7+hwMs3XXRnZdRdZJYaeq41yFj/YDIoQ==
+releaseDate: '2026-10-19T11:43:56.587Z'

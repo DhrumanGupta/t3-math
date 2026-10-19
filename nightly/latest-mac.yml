@@ -1,0 +1,15 @@
+version: '0.1.1-preview.20261019.9'
+files:
+  - url: https://github.com/DhrumanGupta/t3-math/releases/download/math-nightly-v0.1.1-preview.20261019.9/T3-Math-0.1.1-preview.20261019.9-arm64.zip
+    sha512: ERRPmxJjlbTrOyQOpkiXDFGeO2oJyQrSHTi5PQdOuIR135CZk0Os/EHLHJ5sFGQcLxiSvWMgXMKVJ8SAz3AGlA==
+    size: 151966677
+  - url: https://github.com/DhrumanGupta/t3-math/releases/download/math-nightly-v0.1.1-preview.20261019.9/T3-Math-0.1.1-preview.20261019.9-arm64.dmg
+    sha512: YPGBeG2wAtCNTlHBafD9nIv2CUmf/IVX2r86bzHVmS9q4G3MyF8yslhFQKpGDC6SI5jkxjej6Dsavwy7JTurIw==
+    size: 157740339
+  - url: https://github.com/DhrumanGupta/t3-math/releases/download/math-nightly-v0.1.1-preview.20261019.9/T3-Math-0.1.1-preview.20261019.9-x64.zip
+    sha512: 78m5xyCUmx/UK62ZGPv8S1Ql5gJz8Znoi5kyblApjGCqvpTKE9BPdxkI7CpEnLgJJxVh+Y3jRgZdKy2Euw/+eA==
+    size: 159747273
+  - url: https://github.com/DhrumanGupta/t3-math/releases/download/math-nightly-v0.1.1-preview.20261019.9/T3-Math-0.1.1-preview.20261019.9-x64.dmg
+    sha512: qx2W8N9XRbFZm356C3bck65Roo2LPLYeBbNNRa0ufWVAymFwqGvMfI8ejT8kFQEecZj/EbqIvekQ0zU3vnQYUg==
+    size: 165592130
+releaseDate: '2026-10-19T11:49:23.745Z'
