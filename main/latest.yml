@@ -1,0 +1,9 @@
+version: '0.1.1-preview.20261019.9'
+files:
+  - url: https://github.com/DhrumanGupta/t3-math/releases/download/math-main-v0.1.1-preview.20261019.9/T3-Math-0.1.1-preview.20261019.9-x64.exe
+    sha512: Gy9nsVqEtSBC0E+ubTqJMn3t5W0HyzetswiVgrMivg0eFUO8iPo9EwNFa0f/pWTNaUec8iZzeM0aiswYGAvL1w==
+    size: 243555943
+  - url: https://github.com/DhrumanGupta/t3-math/releases/download/math-main-v0.1.1-preview.20261019.9/T3-Math-0.1.1-preview.20261019.9-arm64.exe
+    sha512: 4JekwlwGVoG7Ui75Rwrp2xrwfum10KsPbEjeJno+CBKN6bCyuu+e3+1tYK2T0/FeYeoKKtsyXQrcM5LODaTBCQ==
+    size: 228741517
+releaseDate: '2026-10-19T11:50:21.383Z'
