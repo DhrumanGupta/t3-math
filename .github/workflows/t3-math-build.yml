@@ -7,6 +7,10 @@ name: T3 Math build
 # Packaging is upstream's own release-desktop.yml, on GitHub-hosted runners
 # and with no signing secrets, so it follows upstream's build as it changes.
 # macOS apps are signed ad hoc.
+#
+# Publishing also points the track's update feed at the new release. Apps read
+# <track>/latest*.yml from the `updates` branch; the manifests link to the
+# release's assets.
 
 on:
   workflow_dispatch:
@@ -19,7 +23,7 @@ on:
           - main
           - nightly
       version:
-        description: "Version, as X.Y.Z-preview.YYYYMMDD.N so the app carries no update feed"
+        description: "Version, as X.Y.Z-preview.YYYYMMDD.N"
         required: true
         type: string
       server_version:
@@ -115,7 +119,7 @@ jobs:
     with:
       version: ${{ inputs.version }}
       ref: ${{ github.sha }}
-      release_channel: preview
+      release_channel: t3-math
       relay_client_tracing: false
       clerk_publishable_key: ${{ needs.build_bundle.outputs.clerk_publishable_key }}
       clerk_jwt_template: ${{ needs.build_bundle.outputs.clerk_jwt_template }}
@@ -137,7 +141,7 @@ jobs:
     with:
       version: ${{ inputs.version }}
       ref: ${{ github.sha }}
-      release_channel: preview
+      release_channel: t3-math
       relay_client_tracing: false
       clerk_publishable_key: ${{ needs.build_bundle.outputs.clerk_publishable_key }}
       clerk_jwt_template: ${{ needs.build_bundle.outputs.clerk_jwt_template }}
@@ -161,7 +165,7 @@ jobs:
     with:
       version: ${{ inputs.version }}
       ref: ${{ github.sha }}
-      release_channel: preview
+      release_channel: t3-math
       relay_client_tracing: false
       clerk_publishable_key: ${{ needs.build_bundle.outputs.clerk_publishable_key }}
       clerk_jwt_template: ${{ needs.build_bundle.outputs.clerk_jwt_template }}
@@ -183,7 +187,7 @@ jobs:
     with:
       version: ${{ inputs.version }}
       ref: ${{ github.sha }}
-      release_channel: preview
+      release_channel: t3-math
       relay_client_tracing: false
       clerk_publishable_key: ${{ needs.build_bundle.outputs.clerk_publishable_key }}
       clerk_jwt_template: ${{ needs.build_bundle.outputs.clerk_jwt_template }}
@@ -205,7 +209,7 @@ jobs:
     with:
       version: ${{ inputs.version }}
       ref: ${{ github.sha }}
-      release_channel: preview
+      release_channel: t3-math
       relay_client_tracing: false
       clerk_publishable_key: ${{ needs.build_bundle.outputs.clerk_publishable_key }}
       clerk_jwt_template: ${{ needs.build_bundle.outputs.clerk_jwt_template }}
@@ -227,7 +231,7 @@ jobs:
     with:
       version: ${{ inputs.version }}
       ref: ${{ github.sha }}
-      release_channel: preview
+      release_channel: t3-math
       relay_client_tracing: false
       clerk_publishable_key: ${{ needs.build_bundle.outputs.clerk_publishable_key }}
       clerk_jwt_template: ${{ needs.build_bundle.outputs.clerk_jwt_template }}
@@ -275,7 +279,16 @@ jobs:
         uses: actions/checkout@v6
         with:
           ssh-key: ${{ secrets.T3_MATH_DEPLOY_KEY }}
-          sparse-checkout: .github
+          sparse-checkout: |
+            /.github/
+            /scripts/t3-math-update-feed.ts
+            /scripts/lib/update-manifest.ts
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
 
       - name: Download desktop artifacts
         uses: actions/download-artifact@v8
@@ -289,7 +302,8 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          assets=(release-assets/*.dmg release-assets/*.AppImage release-assets/*.deb release-assets/*.exe)
+          # The macOS updater installs from the .zip.
+          assets=(release-assets/*.dmg release-assets/*.zip release-assets/*.AppImage release-assets/*.deb release-assets/*.exe)
           if [[ "${#assets[@]}" -eq 0 ]]; then
             echo "No platform built; nothing to publish." >&2
             exit 1
@@ -298,6 +312,7 @@ jobs:
           {
             echo "T3 Math is [T3 Code](https://github.com/pingdotgg/t3code) with opt-in LaTeX rendering."
             echo "Math rendering is on by default; turn it off with **Render math** under Settings → Appearance."
+            echo "Installed apps update themselves to the latest build of their track."
             echo
             echo "- Track: \`$TRACK\` (branch \`$GITHUB_REF_NAME\`, commit \`${GITHUB_SHA:0:9}\`)"
             if [[ -n "$UPSTREAM_SHA" ]]; then
@@ -336,7 +351,59 @@ jobs:
             --notes-file notes.md \
             "${flags[@]}"
 
-          if [[ "$FAILED" == "true" ]]; then
-            echo "One or more platform builds failed." >&2
+      # Replaces this track's manifests on the updates branch, keeping the other
+      # track's and those of any platform that did not build this time.
+      - name: Update the feed
+        shell: bash
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: |
+          set -euo pipefail
+          node scripts/t3-math-update-feed.ts release-assets "$RUNNER_TEMP/feed" \
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/math-$TRACK-v$VERSION"
+          shopt -s nullglob
+          manifests=("$RUNNER_TEMP"/feed/*.yml)
+          if [[ "${#manifests[@]}" -eq 0 ]]; then
+            echo "No update manifests were built." >&2
             exit 1
           fi
+          entries="$(
+            for manifest in "${manifests[@]}"; do
+              printf '100644 blob %s\t%s\n' "$(git hash-object -w "$manifest")" "${manifest##*/}"
+            done
+          )"
+          # Later entries replace earlier ones with the same name.
+          make_tree() {
+            awk -F '\t' 'NF { entry[$2] = $0 } END { for (name in entry) print entry[name] }' | git mktree
+          }
+
+          for attempt in 1 2 3 4 5; do
+            parent=""
+            old_root=""
+            old_track=""
+            if git ls-remote --exit-code --heads origin updates > /dev/null; then
+              git fetch --no-tags --depth=1 origin refs/heads/updates
+              parent="$(git rev-parse FETCH_HEAD)"
+              old_root="$(git ls-tree "$parent")"
+              old_track="$(git ls-tree "$parent:$TRACK" 2> /dev/null || true)"
+            fi
+            track_tree="$(printf '%s\n%s\n' "$old_track" "$entries" | make_tree)"
+            root_tree="$(printf '%s\n040000 tree %s\t%s\n' "$old_root" "$track_tree" "$TRACK" | make_tree)"
+            commit="$(git commit-tree "$root_tree" ${parent:+-p "$parent"} -m "Point the $TRACK feed at $VERSION")"
+            # The other track may publish at the same time; retry on a rejected push.
+            if git push origin "$commit:refs/heads/updates"; then
+              exit 0
+            fi
+            sleep $((attempt * 5))
+          done
+          echo "Could not update the feed." >&2
+          exit 1
+
+      - name: Check every platform built
+        if: env.FAILED == 'true'
+        run: |
+          echo "One or more platform builds failed." >&2
+          exit 1
