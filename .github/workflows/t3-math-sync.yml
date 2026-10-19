@@ -233,13 +233,19 @@ jobs:
             vp install --filter=@t3tools/web...
           fi
 
+      # Rendering tests run in headless Chromium, like upstream's web tests.
+      - name: Install Chromium
+        if: steps.target.outputs.merge == 'true'
+        run: node apps/web/node_modules/playwright/cli.js install --with-deps --only-shell chromium
+
       - name: Test math rendering
         if: steps.target.outputs.merge == 'true'
+        working-directory: apps/web
         run: >-
           vp test run
-          apps/web/src/markdown-math.test.ts
-          apps/web/src/markdown-clipboard.math.test.ts
-          apps/web/src/components/ChatMarkdown.test.tsx
+          src/markdown-math.test.ts
+          src/markdown-clipboard.math.browser.test.ts
+          src/components/ChatMarkdown.math.browser.test.tsx
 
       - name: Push branch
         if: steps.target.outputs.merge == 'true'
