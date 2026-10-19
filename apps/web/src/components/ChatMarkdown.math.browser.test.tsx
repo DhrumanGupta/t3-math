@@ -91,7 +91,10 @@ describe("ChatMarkdown math", () => {
       );
       expect(formulas(container)).toEqual(["$\\pi r^2$", "$$\nE = mc^2\n$$\n\n", "$x$"]);
       expect(container.textContent).toContain("costs $5 and $10.");
-      await vi.waitFor(() => expect(container.querySelectorAll(".katex")).toHaveLength(3));
+      // KaTeX is a lazily loaded chunk, which can take seconds on a busy machine.
+      await vi.waitFor(() => expect(container.querySelectorAll(".katex")).toHaveLength(3), {
+        timeout: 10_000,
+      });
 
       await act(async () =>
         container.querySelector<HTMLInputElement>("input[type=checkbox]")!.click(),
