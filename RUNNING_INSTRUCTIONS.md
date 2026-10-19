@@ -7,14 +7,14 @@ install.
 Download the installer for your system from the
 [latest release](https://github.com/DhrumanGupta/t3-math/releases/latest).
 
-| System               | File                                                                     |
-| -------------------- | ------------------------------------------------------------------------ |
-| macOS, Apple Silicon | `T3-Math-<version>-arm64.dmg`                                            |
-| macOS, Intel         | `T3-Math-<version>-x64.dmg`                                              |
-| Windows, x64         | `T3-Math-<version>-x64.exe`                                              |
-| Windows, ARM         | `T3-Math-<version>-arm64.exe`                                            |
-| Linux, x64           | `T3-Math-<version>-x86_64.AppImage` or `T3-Math-<version>-amd64.deb`     |
-| Linux, ARM           | `T3-Math-<version>-arm64.AppImage` or `T3-Math-<version>-arm64.deb`      |
+| System               | File                                                                 |
+| -------------------- | -------------------------------------------------------------------- |
+| macOS, Apple Silicon | `T3-Math-<version>-arm64.dmg`                                        |
+| macOS, Intel         | `T3-Math-<version>-x64.dmg`                                          |
+| Windows, x64         | `T3-Math-<version>-x64.exe`                                          |
+| Windows, ARM         | `T3-Math-<version>-arm64.exe`                                        |
+| Linux, x64           | `T3-Math-<version>-x86_64.AppImage` or `T3-Math-<version>-amd64.deb` |
+| Linux, ARM           | `T3-Math-<version>-arm64.AppImage` or `T3-Math-<version>-arm64.deb`  |
 
 ## macOS
 
@@ -54,8 +54,12 @@ xattr -dr com.apple.quarantine "/Applications/T3 Math.app"
 
 - **Math rendering** is on by default. Turn it off with **Render math** under Settings →
   Appearance.
-- **Updates:** T3 Math does not update itself. A new build is published every week; download it
-  and install it over the old one. On macOS, repeat the steps above for each new build.
+- **Updates:** T3 Math updates itself. A new build is published every week; the app downloads
+  it and installs it when you restart. Older builds say "no update feed is configured" in
+  Settings; install the latest build by hand once to get updates.
+- **Update track:** leave **Update track** in Settings on **Stable**. Each install follows the
+  track it was downloaded from (main or nightly); to switch, install a build from the other
+  track.
 - **Next to T3 Code:** T3 Math keeps its data in `~/.t3-math`, so it can be installed alongside
   T3 Code. It starts with its own empty history and settings.
 

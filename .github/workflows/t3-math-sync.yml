@@ -124,8 +124,8 @@ jobs:
           # Nightly tags carry the version the next stable will ship as.
           base_version="${nightly_tag#v}"
           base_version="${base_version%%-*}"
-          # The preview suffix is upstream's format for builds with no update
-          # feed, so the app never polls for an update it cannot install.
+          # Upstream's preview format. T3 Math builds follow their own feed
+          # (see t3-math-build.yml) rather than upstream's.
           version="${base_version}-preview.$(date -u +%Y%m%d).${GITHUB_RUN_NUMBER}"
 
           previous_sha="$(git merge-base "$target_sha" HEAD)"

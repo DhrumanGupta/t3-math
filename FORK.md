@@ -18,8 +18,12 @@ It is not affiliated with or supported by the T3 Code team. Report problems with
 - `README.md` starts with the notice in
   [`.github/t3-math-readme-header.md`](.github/t3-math-readme-header.md).
 - [`RUNNING_INSTRUCTIONS.md`](RUNNING_INSTRUCTIONS.md), the install and first-launch steps.
+- Builds follow the T3 Math update feed instead of upstream's (`resolveT3MathUpdateFeed` in
+  `scripts/build-desktop-artifact.ts`), and macOS builds are signed by
+  `scripts/sign-macos-adhoc.ts`.
 - [`t3-math-sync.yml`](.github/workflows/t3-math-sync.yml),
-  [`t3-math-build.yml`](.github/workflows/t3-math-build.yml) and this file.
+  [`t3-math-build.yml`](.github/workflows/t3-math-build.yml),
+  `scripts/t3-math-update-feed.ts` and this file.
 
 T3 Math keeps its data in `~/.t3-math` and its own Electron profile (`t3math`), so it does not
 read or change T3 Code's threads and settings, and both apps can be installed side by side. The
@@ -31,11 +35,11 @@ npm or upstream's releases.
 
 ## Branches and builds
 
-| Branch         | Follows                     | Release               |
-| -------------- | --------------------------- | --------------------- |
-| `math`         | upstream `main`             | prerelease            |
-| `math-nightly` | latest upstream nightly tag | marked latest         |
-| `main`         | untouched upstream mirror   | none                  |
+| Branch         | Follows                     | Release       |
+| -------------- | --------------------------- | ------------- |
+| `math`         | upstream `main`             | prerelease    |
+| `math-nightly` | latest upstream nightly tag | marked latest |
+| `main`         | untouched upstream mirror   | none          |
 
 Every Monday the sync workflow merges each upstream target into its branch, runs the math tests,
 pushes the branch, and starts the build workflow on it. The build packages apps for macOS
@@ -43,10 +47,13 @@ pushes the branch, and starts the build workflow on it. The build packages apps 
 `release-desktop.yml`, then publishes them under [Releases](../../releases). Run the sync workflow
 by hand from the Actions tab to build sooner.
 
-Builds carry no update feed. Download the new installer to update. They are not signed with a
-developer certificate; the macOS apps are signed ad hoc, so macOS and Windows block them on first
-launch. [RUNNING_INSTRUCTIONS.md](RUNNING_INSTRUCTIONS.md) has the steps to open them on each
-system.
+Installed apps update themselves. Each track has its own feed on the `updates` branch
+(`main/` and `nightly/`), which the build workflow points at each new release; the apps keep
+upstream's "latest" channel, so leave **Update track** on Stable. The apps are not signed with a
+developer certificate, so macOS and Windows block them on first launch.
+[RUNNING_INSTRUCTIONS.md](RUNNING_INSTRUCTIONS.md) has the steps to open them on each system.
+The macOS apps are signed ad hoc with a requirement on their bundle identifier, so the updater
+accepts each new build as the same app.
 
 ## When a merge conflicts
 

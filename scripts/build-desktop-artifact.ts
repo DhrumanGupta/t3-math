@@ -2632,6 +2632,25 @@ export function isDesktopPreviewVersion(version: string): boolean {
   return /-pr\./.test(version) || /-preview\.\d{8}\.\d+$/.test(version);
 }
 
+// T3 Math builds keep the preview version format but follow their track's
+// feed on the `updates` branch, which t3-math-build.yml writes. The channel is
+// pinned because electron-builder would name the manifests after "preview".
+export const resolveT3MathUpdateFeed = Effect.fn("resolveT3MathUpdateFeed")(function* () {
+  const env = yield* Config.all({
+    repository: Config.String("GITHUB_REPOSITORY").pipe(Config.option),
+    ref: Config.String("GITHUB_REF_NAME").pipe(Config.option),
+  });
+  const repository = Option.getOrUndefined(env.repository)?.trim();
+  const ref = Option.getOrUndefined(env.ref);
+  const track = ref === "math" ? "main" : ref === "math-nightly" ? "nightly" : undefined;
+  if (!repository || !track) return undefined;
+  return {
+    provider: "generic" as const,
+    url: `https://raw.githubusercontent.com/${repository}/updates/${track}`,
+    channel: "latest" as const,
+  };
+});
+
 export function resolveDesktopWebAssetBrand(version: string): WebAssetBrand {
   return resolveWebAssetBrandForChannel(resolveDesktopUpdateChannel(version));
 }
@@ -2726,7 +2745,10 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   // GH_TOKEN/GITHUB_TOKEN. The staged app has no repository to resolve it
   // against, so writing update manifests then crashes on a null config.
   buildConfig.publish = null;
-  if (!isDesktopPreviewVersion(version)) {
+  const t3MathUpdateFeed = yield* resolveT3MathUpdateFeed();
+  if (t3MathUpdateFeed) {
+    buildConfig.publish = [t3MathUpdateFeed];
+  } else if (!isDesktopPreviewVersion(version)) {
     const publishConfig = yield* resolveGitHubPublishConfig(updateChannel);
     if (publishConfig) {
       buildConfig.publish = [publishConfig];
@@ -2780,7 +2802,11 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       // macOS reports an unverified developer instead of a damaged app.
       ...(signed
         ? { sign: path.join(repoRoot, "scripts/sign-macos.ts") }
-        : { identity: "-", hardenedRuntime: false }),
+        : {
+            identity: "-",
+            hardenedRuntime: false,
+            sign: path.join(repoRoot, "scripts/sign-macos-adhoc.ts"),
+          }),
       ...(macPasskeySigning
         ? {
             entitlements: macPasskeySigning.entitlementsPath,
