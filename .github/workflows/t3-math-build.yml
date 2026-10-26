@@ -359,13 +359,18 @@ jobs:
             flags=(--latest)
           fi
           tag="math-$TRACK-v$VERSION"
-          git tag --force "$tag" "$GITHUB_SHA"
-          git push origin "refs/tags/$tag"
-          gh release create "$tag" "${assets[@]}" \
-            --verify-tag \
-            --title "T3 Math $VERSION ($TRACK)" \
-            --notes-file notes.md \
-            "${flags[@]}"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            gh release upload "$tag" "${assets[@]}" --clobber
+            gh release edit "$tag" --title "T3 Math $VERSION ($TRACK)" \
+              --notes-file notes.md "${flags[@]}"
+          else
+            git tag "$tag" "$GITHUB_SHA"
+            git push origin "refs/tags/$tag"
+            gh release create "$tag" "${assets[@]}" \
+              --verify-tag \
+              --title "T3 Math $VERSION ($TRACK)" \
+              --notes-file notes.md "${flags[@]}"
+          fi
 
       # Publish each channel at the root and at both legacy feed URLs.
       - name: Update the feed

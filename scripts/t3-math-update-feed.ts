@@ -60,8 +60,10 @@ for (const feed of feeds) {
       return `${key}${downloadUrl}/${encodeURIComponent(file)}`;
     },
   );
-  const version = parseUpdateManifest(manifest, feed.name, feed.label).version;
-  if ((track === "nightly") !== /-nightly\.\d{8}\.\d+$/.test(version)) {
+  const version = manifest.match(
+    /^version:\s*['"]?(\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?)['"]?\s*$/m,
+  )?.[1];
+  if (!version || (track === "nightly") !== /-nightly\.\d{8}\.\d+$/.test(version)) {
     throw new Error(`${version} does not belong to the ${track} release track.`);
   }
   const name = feed.name.replace(/^latest/, track === "nightly" ? "nightly" : "latest");
