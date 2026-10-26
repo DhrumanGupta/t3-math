@@ -1,6 +1,6 @@
 // @effect-diagnostics nodeBuiltinImport:off - electron-builder calls this hook outside Effect.
-import { execFileSync } from "node:child_process";
-import * as path from "node:path";
+import * as NodeChildProcess from "node:child_process";
+import * as NodePath from "node:path";
 
 import { sign as signApplication, type SignOptions } from "@electron/osx-sign";
 
@@ -9,9 +9,9 @@ import { sign as signApplication, type SignOptions } from "@electron/osx-sign";
 // the updater would reject each new build as a different app. The app bundle
 // requires its bundle identifier instead. Nested code keeps the default.
 export default async function sign(options: SignOptions): Promise<void> {
-  const bundleId = execFileSync(
+  const bundleId = NodeChildProcess.execFileSync(
     "/usr/bin/plutil",
-    ["-extract", "CFBundleIdentifier", "raw", path.join(options.app, "Contents/Info.plist")],
+    ["-extract", "CFBundleIdentifier", "raw", NodePath.join(options.app, "Contents/Info.plist")],
     { encoding: "utf8" },
   ).trim();
   const optionsForFile = options.optionsForFile;
