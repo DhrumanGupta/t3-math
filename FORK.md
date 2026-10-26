@@ -46,8 +46,10 @@ pushes the branch, and starts the build workflow on it. The build packages apps 
 by hand from the Actions tab to build sooner.
 
 Installed apps update themselves. Each track has its own feed on the `updates` branch
-(`main/` and `nightly/`), which the build workflow points at each new release. Both **Update track**
-choices follow the installed build's release track. The apps are not signed with a
+(`main/` and `nightly/`), which the build workflow points at each new release. Leave **Update track**
+on **Stable**, including for builds downloaded from the nightly release track. The Nightly setting
+rejects the fork's `-preview` version numbers even when it can read the feed. To change release
+tracks, install a build from the other track. The apps are not signed with a
 developer certificate, so macOS and Windows block them on first launch.
 [RUNNING_INSTRUCTIONS.md](RUNNING_INSTRUCTIONS.md) has the steps to open them on each system.
 The macOS apps are signed ad hoc with a requirement on their bundle identifier, so the updater
