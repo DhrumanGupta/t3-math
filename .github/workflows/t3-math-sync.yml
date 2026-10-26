@@ -243,9 +243,13 @@ jobs:
         working-directory: apps/web
         run: >-
           vp test run
-          src/markdown-math.test.ts
           src/markdown-clipboard.math.browser.test.ts
           src/components/ChatMarkdown.math.browser.test.tsx
+
+      - name: Test shared math parser
+        if: steps.target.outputs.merge == 'true'
+        working-directory: packages/shared
+        run: vp test run --config ../../vite.config.ts --dir . src/markdownMath.test.ts
 
       - name: Push branch
         if: steps.target.outputs.merge == 'true'
