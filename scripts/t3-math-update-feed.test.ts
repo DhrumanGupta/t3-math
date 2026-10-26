@@ -34,6 +34,7 @@ files:
   - url: ${asset}
     sha512: checksum-${asset}
     size: 5
+${asset.endsWith("AppImage") ? "    blockMapSize: 123\n" : ""}\
 releaseDate: '2026-10-26T11:35:15.103Z'
 `,
       );
@@ -65,7 +66,12 @@ releaseDate: '2026-10-26T11:35:15.103Z'
           NodePath.join(feed, `${channel === "latest" ? "nightly" : "latest"}${suffix}.yml`),
         ),
       );
-      const manifest = parseUpdateManifest(contents, name, "test");
+      if (suffix.startsWith("-linux")) assert.include(contents, "    blockMapSize: 123\n");
+      const manifest = parseUpdateManifest(
+        contents.replace(/^    blockMapSize: \d+\n/gm, ""),
+        name,
+        "test",
+      );
       assert.equal(manifest.version, version);
       assert.deepStrictEqual(
         manifest.files,
