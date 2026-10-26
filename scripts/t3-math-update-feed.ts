@@ -12,9 +12,11 @@ import {
   serializeUpdateManifest,
 } from "./lib/update-manifest.ts";
 
-const [assetsDir, feedDir, downloadUrl] = process.argv.slice(2);
-if (!assetsDir || !feedDir || !downloadUrl) {
-  console.error("Usage: t3-math-update-feed.ts <assets dir> <feed dir> <release download URL>");
+const [assetsDir, feedDir, downloadUrl, track] = process.argv.slice(2);
+if (!assetsDir || !feedDir || !downloadUrl || (track !== "main" && track !== "nightly")) {
+  console.error(
+    "Usage: t3-math-update-feed.ts <assets dir> <feed dir> <release download URL> <main|nightly>",
+  );
   process.exit(1);
 }
 
@@ -58,10 +60,11 @@ for (const feed of feeds) {
       return `${key}${downloadUrl}/${encodeURIComponent(file)}`;
     },
   );
-  // The app's channel setting overrides app-update.yml's channel at runtime.
-  for (const channel of ["latest", "nightly"]) {
-    const name = feed.name.replace(/^latest/, channel);
-    NodeFS.writeFileSync(NodePath.join(feedDir, name), manifest);
-    console.log(`Wrote ${name} from ${sources.join(", ")}.`);
+  const version = parseUpdateManifest(manifest, feed.name, feed.label).version;
+  if ((track === "nightly") !== /-nightly\.\d{8}\.\d+$/.test(version)) {
+    throw new Error(`${version} does not belong to the ${track} release track.`);
   }
+  const name = feed.name.replace(/^latest/, track === "nightly" ? "nightly" : "latest");
+  NodeFS.writeFileSync(NodePath.join(feedDir, name), manifest);
+  console.log(`Wrote ${name} from ${sources.join(", ")}.`);
 }
