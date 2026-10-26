@@ -58,6 +58,10 @@ for (const feed of feeds) {
       return `${key}${downloadUrl}/${encodeURIComponent(file)}`;
     },
   );
-  NodeFS.writeFileSync(NodePath.join(feedDir, feed.name), manifest);
-  console.log(`Wrote ${feed.name} from ${sources.join(", ")}.`);
+  // The app's channel setting overrides app-update.yml's channel at runtime.
+  for (const channel of ["latest", "nightly"]) {
+    const name = feed.name.replace(/^latest/, channel);
+    NodeFS.writeFileSync(NodePath.join(feedDir, name), manifest);
+    console.log(`Wrote ${name} from ${sources.join(", ")}.`);
+  }
 }
