@@ -1,7 +1,7 @@
 # T3 Math
 
-T3 Math is a fork of [T3 Code](https://github.com/pingdotgg/t3code) that adds opt-in LaTeX
-rendering to chat, on by default. Turn it off with **Render math** under Settings → Appearance.
+T3 Math is a fork of [T3 Code](https://github.com/pingdotgg/t3code) with LaTeX
+rendering enabled by default. Turn it off with **Render math** under Settings → Appearance.
 Everything else is upstream, unchanged.
 
 It is not affiliated with or supported by the T3 Code team. Report problems with T3 Math
@@ -9,9 +9,7 @@ It is not affiliated with or supported by the T3 Code team. Report problems with
 
 ## What differs from upstream
 
-- LaTeX rendering from [pingdotgg/t3code#14574](https://github.com/pingdotgg/t3code/pull/14574)
-  by Hjalmar Karlsen, merged at `2d2a16f4`.
-- Math rendering is on by default.
+- Uses upstream's native LaTeX renderer, with math rendering on by default.
 - The desktop app is named "T3 Math", has its own icon (`assets/math/`) and its own app ID
   (`com.dhrumangupta.t3math`), and installers are named `T3-Math-…`.
 - Data lives in `~/.t3-math`, and remote servers are updated to the matching upstream nightly.

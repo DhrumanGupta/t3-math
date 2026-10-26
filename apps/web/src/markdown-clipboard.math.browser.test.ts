@@ -14,9 +14,16 @@ function select(start: Node, startOffset: number, end: Node, endOffset: number) 
 
 describe("copying rendered math", () => {
   it("copies a formula's TeX whether the selection spans it or starts inside it", () => {
-    document.body.innerHTML = `<div class="chat-markdown"><p>Area <span data-markdown-math="" data-markdown-copy="$\\pi r^2$"><span class="katex"><span class="katex-mathml">πr2</span><span class="katex-html" aria-hidden="true">πr2</span></span></span> grows.</p></div>`;
-    const paragraph = document.querySelector("p")!;
-    const glyphs = document.querySelector(".katex-mathml")!.firstChild!;
+    const container = document.body.appendChild(document.createElement("div"));
+    using _cleanup = {
+      [Symbol.dispose]() {
+        window.getSelection()?.removeAllRanges();
+        container.remove();
+      },
+    };
+    container.innerHTML = `<div class="chat-markdown"><p>Area <span data-markdown-math="inline" data-markdown-copy="$\\pi r^2$"><span class="katex"><span class="katex-mathml">πr2</span><span class="katex-html" aria-hidden="true">πr2</span></span></span> grows.</p></div>`;
+    const paragraph = container.querySelector("p")!;
+    const glyphs = container.querySelector(".katex-mathml")!.firstChild!;
 
     expect(
       chatMarkdownClipboardPayload(select(paragraph.firstChild!, 0, paragraph.lastChild!, 7))?.text,

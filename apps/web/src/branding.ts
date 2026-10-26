@@ -25,6 +25,7 @@ export const APP_DISPLAY_NAME =
   injectedDesktopAppBranding?.displayName ??
   formatAppDisplayName({ baseName: APP_BASE_NAME, stageLabel: APP_STAGE_LABEL });
 export const APP_VERSION = import.meta.env.APP_VERSION || "0.0.0";
-// T3 Math builds carry a version upstream never published, so remote servers
-// are moved to the upstream release this build was synced against instead.
+export const DESKTOP_DOWNLOAD_URL = "https://t3.codes/download";
+
+// Remote hosts use the upstream version bundled by this fork.
 export const SERVER_TARGET_VERSION = import.meta.env.T3_MATH_SERVER_VERSION || APP_VERSION;
