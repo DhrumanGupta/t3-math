@@ -2713,9 +2713,8 @@ export function isDesktopPreviewVersion(version: string): boolean {
   return /-pr\./.test(version) || /-preview\.\d{8}\.\d+$/.test(version);
 }
 
-// T3 Math builds keep the preview version format but follow their track's
-// feed on the `updates` branch, which t3-math-build.yml writes. The channel is
-// pinned because electron-builder would name the manifests after "preview".
+// Runtime selects latest/nightly in this shared feed; pin builder output to
+// latest so the publisher can merge the same manifest names for both tracks.
 export const resolveT3MathUpdateFeed = Effect.fn("resolveT3MathUpdateFeed")(function* () {
   const env = yield* Config.all({
     repository: Config.String("GITHUB_REPOSITORY").pipe(Config.option),
@@ -2727,7 +2726,7 @@ export const resolveT3MathUpdateFeed = Effect.fn("resolveT3MathUpdateFeed")(func
   if (!repository || !track) return undefined;
   return {
     provider: "generic" as const,
-    url: `https://raw.githubusercontent.com/${repository}/updates/${track}`,
+    url: `https://raw.githubusercontent.com/${repository}/updates`,
     channel: "latest" as const,
   };
 });
@@ -2767,10 +2766,8 @@ export function resolvePackageManagerUserAgent(packageManager: string): string {
   return `${trimmed.slice(0, versionSeparator)}/${trimmed.slice(versionSeparator + 1)}`;
 }
 
-export function resolveDesktopProductName(version: string): string {
-  return resolveDesktopUpdateChannel(version) === "nightly"
-    ? "T3 Code (Nightly)"
-    : (desktopPackageJson.productName ?? "T3 Code");
+export function resolveDesktopProductName(_version: string): string {
+  return desktopPackageJson.productName ?? "T3 Math";
 }
 
 export const createBuildConfig = Effect.fn("createBuildConfig")(function* (

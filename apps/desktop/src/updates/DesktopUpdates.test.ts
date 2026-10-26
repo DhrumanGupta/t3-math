@@ -21,6 +21,40 @@ import * as DesktopUpdates from "./DesktopUpdates.ts";
 import { flushCallbacks, makeHarness } from "./updatesTestHarness.ts";
 
 describe("DesktopUpdates", () => {
+  it.effect("offers only the selected release track when switching Nightly and Stable", () => {
+    const harness = makeHarness();
+    const nightly = "0.1.3-nightly.20261026.12";
+    const stable = "0.1.3-preview.20261026.12";
+
+    return Effect.scoped(
+      Effect.gen(function* () {
+        const updates = yield* DesktopUpdates.DesktopUpdates;
+        yield* updates.configure;
+        for (const [channel, expected, other] of [
+          ["nightly", nightly, stable],
+          ["latest", stable, nightly],
+          ["nightly", nightly, stable],
+        ] as const) {
+          yield* updates.setChannel(channel);
+          const { changes } = yield* updates.subscribe;
+          harness.emit("update-available", { version: other });
+          const rejected = Option.getOrThrow(yield* Stream.runHead(changes));
+          assert.equal(rejected.status, "up-to-date");
+          assert.isNull(rejected.availableVersion);
+
+          harness.emit("update-available", { version: expected, releaseNotes: "- Fix updates" });
+          const accepted = Option.getOrThrow(yield* Stream.runHead(changes));
+          assert.equal(accepted.status, "available");
+          assert.equal(accepted.availableVersion, expected);
+          assert.equal(accepted.channel, channel);
+          assert.deepEqual(accepted.releaseNotes, [
+            { version: expected, items: ["Fix updates"], totalItems: 1 },
+          ]);
+        }
+      }),
+    ).pipe(Effect.provide(Layer.merge(TestClock.layer(), harness.layer)));
+  });
+
   it.effect("updates Linux .deb installs and leaves other non-AppImage installs off", () =>
     Effect.gen(function* () {
       const linuxState = (packageType: string | undefined) =>

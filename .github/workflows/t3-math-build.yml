@@ -9,7 +9,7 @@ name: T3 Math build
 # macOS apps are signed ad hoc.
 #
 # Publishing also points the track's update feed at the new release. Apps read
-# <track>/latest*.yml from the `updates` branch; the manifests link to the
+# latest*.yml or nightly*.yml from the `updates` branch; the manifests link to the
 # release's assets.
 
 on:
@@ -23,7 +23,7 @@ on:
           - main
           - nightly
       version:
-        description: "Version, as X.Y.Z-preview.YYYYMMDD.N"
+        description: "Version, as X.Y.Z-preview.YYYYMMDD.N (main) or X.Y.Z-nightly.YYYYMMDD.N"
         required: true
         type: string
       server_version:
@@ -80,6 +80,22 @@ jobs:
         run: |
           set -euo pipefail
           grep -E '^T3CODE_[A-Z_]+=' .env.example | tee -a "$GITHUB_ENV" >> "$GITHUB_OUTPUT"
+
+      - name: Validate release channel
+        shell: bash
+        env:
+          TRACK: ${{ inputs.track }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          prerelease="preview"
+          if [[ "$TRACK" == "nightly" ]]; then
+            prerelease="nightly"
+          fi
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-${prerelease}\.[0-9]{8}\.[0-9]+$ ]]; then
+            echo "Version $VERSION does not match the $TRACK release track." >&2
+            exit 1
+          fi
 
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@v1
@@ -312,7 +328,7 @@ jobs:
           {
             echo "T3 Math is [T3 Code](https://github.com/pingdotgg/t3code) with opt-in LaTeX rendering."
             echo "Math rendering is on by default; turn it off with **Render math** under Settings → Appearance."
-            echo "Installed apps update themselves to the latest build of their track."
+            echo "Choose Stable or Nightly in Settings → Update track to follow that release track."
             echo
             echo "- Track: \`$TRACK\` (branch \`$GITHUB_REF_NAME\`, commit \`${GITHUB_SHA:0:9}\`)"
             if [[ -n "$UPSTREAM_SHA" ]]; then
@@ -351,8 +367,7 @@ jobs:
             --notes-file notes.md \
             "${flags[@]}"
 
-      # Replaces this track's manifests on the updates branch, keeping the other
-      # track's and those of any platform that did not build this time.
+      # Publish each channel at the root and at both legacy feed URLs.
       - name: Update the feed
         shell: bash
         env:
@@ -363,7 +378,7 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/t3-math-update-feed.ts release-assets "$RUNNER_TEMP/feed" \
-            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/math-$TRACK-v$VERSION"
+            "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/math-$TRACK-v$VERSION" "$TRACK"
           shopt -s nullglob
           manifests=("$RUNNER_TEMP"/feed/*.yml)
           if [[ "${#manifests[@]}" -eq 0 ]]; then
@@ -383,15 +398,21 @@ jobs:
           for attempt in 1 2 3 4 5; do
             parent=""
             old_root=""
-            old_track=""
             if git ls-remote --exit-code --heads origin updates > /dev/null; then
               git fetch --no-tags --depth=1 origin refs/heads/updates
               parent="$(git rev-parse FETCH_HEAD)"
               old_root="$(git ls-tree "$parent")"
-              old_track="$(git ls-tree "$parent:$TRACK" 2> /dev/null || true)"
             fi
-            track_tree="$(printf '%s\n%s\n' "$old_track" "$entries" | make_tree)"
-            root_tree="$(printf '%s\n040000 tree %s\t%s\n' "$old_root" "$track_tree" "$TRACK" | make_tree)"
+            legacy_trees=""
+            for legacy_track in main nightly; do
+              old_track=""
+              if [[ -n "$parent" ]]; then
+                old_track="$(git ls-tree "$parent:$legacy_track" 2> /dev/null || true)"
+              fi
+              track_tree="$(printf '%s\n%s\n' "$old_track" "$entries" | make_tree)"
+              legacy_trees+="$(printf '040000 tree %s\t%s' "$track_tree" "$legacy_track")"$'\n'
+            done
+            root_tree="$(printf '%s\n%s\n%s' "$old_root" "$entries" "$legacy_trees" | make_tree)"
             commit="$(git commit-tree "$root_tree" ${parent:+-p "$parent"} -m "Point the $TRACK feed at $VERSION")"
             # The other track may publish at the same time; retry on a rejected push.
             if git push origin "$commit:refs/heads/updates"; then

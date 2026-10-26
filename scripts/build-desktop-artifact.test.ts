@@ -473,6 +473,45 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     }),
   );
 
+  it.effect.each([
+    ["math", "0.1.3-preview.20261026.12"],
+    ["math-nightly", "0.1.3-nightly.20261026.12"],
+  ] as const)(
+    "packages %s with a shared channel-selectable feed and T3 Math identity",
+    ([branch, version]) =>
+      Effect.gen(function* () {
+        const config = yield* createBuildConfig(
+          "mac",
+          "dmg",
+          version,
+          false,
+          false,
+          undefined,
+          undefined,
+        );
+        assert.deepStrictEqual(config.publish, [
+          {
+            provider: "generic",
+            url: "https://raw.githubusercontent.com/DhrumanGupta/t3-math/updates",
+            channel: "latest",
+          },
+        ]);
+        assert.equal(config.productName, "T3 Math");
+        assert.equal(config.appId, "com.dhrumangupta.t3math");
+      }).pipe(
+        Effect.provide(
+          ConfigProvider.layer(
+            ConfigProvider.fromEnv({
+              env: {
+                GITHUB_REPOSITORY: "DhrumanGupta/t3-math",
+                GITHUB_REF_NAME: branch,
+              },
+            }),
+          ),
+        ),
+      ),
+  );
+
   it.effect("omits update feeds for pull request preview builds", () =>
     Effect.gen(function* () {
       const preview = yield* createBuildConfig(

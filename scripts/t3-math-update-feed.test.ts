@@ -7,11 +7,15 @@ import { assert, it } from "@effect/vitest";
 
 import { parseUpdateManifest } from "./lib/update-manifest.ts";
 
-it("publishes both updater channels for every platform with the same release assets", () => {
+it.each([
+  ["main", "latest"],
+  ["nightly", "nightly"],
+] as const)("publishes only %s's %s channel for every platform", (track, channel) => {
   const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3-math-feed-"));
   try {
     const assets = NodePath.join(root, "assets");
     const feed = NodePath.join(root, "feed");
+    const version = `0.1.3-${track === "nightly" ? "nightly" : "preview"}.20261026.12`;
     NodeFS.mkdirSync(assets);
     const sources = [
       ["latest-mac.yml", "arm64.zip"],
@@ -25,7 +29,7 @@ it("publishes both updater channels for every platform with the same release ass
       NodeFS.writeFileSync(NodePath.join(assets, asset), "asset");
       NodeFS.writeFileSync(
         NodePath.join(assets, name),
-        `version: '0.1.3-preview.20261026.11'
+        `version: '${version}'
 files:
   - url: ${asset}
     sha512: checksum-${asset}
@@ -37,7 +41,13 @@ releaseDate: '2026-10-26T11:35:15.103Z'
     const downloadUrl = "https://github.com/example/fork/releases/download/test";
     const result = NodeChildProcess.spawnSync(
       process.execPath,
-      [NodePath.join(import.meta.dirname, "t3-math-update-feed.ts"), assets, feed, downloadUrl],
+      [
+        NodePath.join(import.meta.dirname, "t3-math-update-feed.ts"),
+        assets,
+        feed,
+        downloadUrl,
+        track,
+      ],
       { encoding: "utf8" },
     );
     assert.equal(result.status, 0, result.stderr);
@@ -48,11 +58,15 @@ releaseDate: '2026-10-26T11:35:15.103Z'
       ["-linux", ["x64.AppImage"]],
       ["-linux-arm64", ["arm64.AppImage"]],
     ] as const) {
-      const latest = NodeFS.readFileSync(NodePath.join(feed, `latest${suffix}.yml`), "utf8");
-      const nightly = NodeFS.readFileSync(NodePath.join(feed, `nightly${suffix}.yml`), "utf8");
-      assert.equal(nightly, latest);
-      const manifest = parseUpdateManifest(nightly, `nightly${suffix}.yml`, "test");
-      assert.equal(manifest.version, "0.1.3-preview.20261026.11");
+      const name = `${channel}${suffix}.yml`;
+      const contents = NodeFS.readFileSync(NodePath.join(feed, name), "utf8");
+      assert.isFalse(
+        NodeFS.existsSync(
+          NodePath.join(feed, `${channel === "latest" ? "nightly" : "latest"}${suffix}.yml`),
+        ),
+      );
+      const manifest = parseUpdateManifest(contents, name, "test");
+      assert.equal(manifest.version, version);
       assert.deepStrictEqual(
         manifest.files,
         expectedAssets.map((asset) => ({
@@ -62,6 +76,19 @@ releaseDate: '2026-10-26T11:35:15.103Z'
         })),
       );
     }
+    const wrongTrack = NodeChildProcess.spawnSync(
+      process.execPath,
+      [
+        NodePath.join(import.meta.dirname, "t3-math-update-feed.ts"),
+        assets,
+        NodePath.join(root, "wrong-feed"),
+        downloadUrl,
+        track === "main" ? "nightly" : "main",
+      ],
+      { encoding: "utf8" },
+    );
+    assert.notEqual(wrongTrack.status, 0);
+    assert.include(wrongTrack.stderr, "does not belong to");
   } finally {
     NodeFS.rmSync(root, { recursive: true, force: true });
   }
