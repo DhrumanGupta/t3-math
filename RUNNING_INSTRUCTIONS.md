@@ -54,7 +54,7 @@ xattr -dr com.apple.quarantine "/Applications/T3 Math.app"
 
 - **Math rendering** is on by default. Turn it off with **Render math** under Settings →
   Appearance.
-- **Updates:** T3 Math updates itself. A new build is published every week; the app downloads
+- **Updates:** T3 Math updates itself. Upstream changes are checked every two days and new builds are published when needed; the app downloads
   it and installs it when you restart. Older builds say "no update feed is configured" in
   Settings; install the latest build by hand once to get updates.
 - **Update track:** choose **Stable** for main-track releases or **Nightly** for nightly releases.
