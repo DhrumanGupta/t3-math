@@ -1,6 +1,6 @@
 name: T3 Math sync
 
-# Weekly upstream sync. Each track merges its upstream target into its own
+# Upstream sync every two days. Each track merges its upstream target into its own
 # branch, checks the math rendering tests, pushes the branch, and starts
 # t3-math-build.yml on it.
 #
@@ -12,8 +12,8 @@ name: T3 Math sync
 
 on:
   schedule:
-    # Mondays 03:17 UTC.
-    - cron: "17 3 * * 1"
+    # Daily at 03:17 UTC; the selection step permits alternate UTC epoch days.
+    - cron: "17 3 * * *"
   workflow_dispatch:
     inputs:
       track:
@@ -61,12 +61,20 @@ jobs:
       # gh otherwise resolves a fork checkout to its parent repository.
       GH_REPO: ${{ github.repository }}
     steps:
-      - name: Check track selection
+      - name: Check cadence and track selection
         id: select
         shell: bash
         env:
+          EVENT_NAME: ${{ github.event_name }}
           REQUESTED: ${{ inputs.track || 'both' }}
         run: |
+          set -euo pipefail
+          # Epoch days keep the two-day interval across month and year boundaries.
+          utc_day=$(( $(date -u +%s) / 86400 ))
+          if [[ "$EVENT_NAME" == "schedule" ]] && (( utc_day % 2 != 0 )); then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if [[ "$REQUESTED" == "both" || "$REQUESTED" == "$TRACK" ]]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else

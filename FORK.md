@@ -39,7 +39,7 @@ npm or upstream's releases.
 | `math-nightly` | latest upstream nightly tag | marked latest |
 | `main`         | untouched upstream mirror   | none          |
 
-Every Monday the sync workflow merges each upstream target into its branch, runs the math tests,
+Every two days at 03:17 UTC (08:47 IST), the sync workflow merges each upstream target into its branch, runs the math tests,
 pushes the branch, and starts the build workflow on it. The build packages apps for macOS
 (arm64, x64), Linux (x64, arm64; AppImage and `.deb`) and Windows (x64, arm64) with upstream's own
 `release-desktop.yml`, then publishes them under [Releases](../../releases). Run the sync workflow
